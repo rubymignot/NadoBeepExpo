@@ -4,13 +4,14 @@ import { ExternalLink, TriangleAlert as AlertTriangle, Info, Volume2, Bell, Bug 
 import * as Notifications from 'expo-notifications';
 import { useAlertSound } from '../../hooks/useAlertSound';
 import { styles } from '@/styles/about.styles';
+import { AlertEvent } from '../../types/alerts';
 
 export default function AboutScreen() {
   const { playAlarmSound, stopAlarmSound } = useAlertSound();
 
   const testTornadoWarning = async () => {
-    // Play alarm sound with type-safe parameter
-    playAlarmSound('test-tornado-warning' as const);
+    // Use the correct enum value
+    playAlarmSound(AlertEvent.TestTornadoWarning);
 
     // Show test notification
     if (Platform.OS === 'web' && 'Notification' in window) {

@@ -11,8 +11,9 @@ export const SEVERITY_COLORS: Record<AlertSeverity, string> = {
 };
 
 export const EVENT_COLORS: Record<AlertEvent | 'default', string> = {
-  [AlertEvent.TornadoWarning]: '#7b241c',
-  [AlertEvent.FlashFloodWarning]: '#1a5276',
-  [AlertEvent.SevereThunderstormWarning]: '#6c3483',
-  default: '#2c3e50',
+    [AlertEvent.TornadoWarning]: '#7b241c',
+    [AlertEvent.FlashFloodWarning]: '#1a5276',
+    [AlertEvent.SevereThunderstormWarning]: '#6c3483',
+    default: '#2c3e50',
+    [AlertEvent.TestTornadoWarning]: ''
 };

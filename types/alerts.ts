@@ -10,6 +10,7 @@ export enum AlertEvent {
   TornadoWarning = 'Tornado Warning',
   FlashFloodWarning = 'Flash Flood Warning',
   SevereThunderstormWarning = 'Severe Thunderstorm Warning',
+  TestTornadoWarning = 'Test Tornado Warning' // Add this line
 }
 
 export interface AlertProperties {
