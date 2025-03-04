@@ -21,11 +21,7 @@ export const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-    ...(isWeb && {
-      height: '100vh',
-      overflow: 'hidden',
-    }),
-  } as ViewStyle,
+  },
   innerContainer: {
     flex: 1,
     width: '100%',
@@ -34,7 +30,8 @@ export const styles = StyleSheet.create({
   },
   headerGradient: {
     width: '100%',
-    paddingTop: Platform.OS === 'ios' ? 50 : 25,
+    height: Platform.OS === 'ios' ? 80 : 65,
+    justifyContent: 'flex-end', // Align content to bottom of gradient
   },
   header: {
     width: '100%',
@@ -44,17 +41,19 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: LAYOUT.contentPadding,
-    paddingVertical: 12,
+    height: 44, // Fixed height for header
+    marginBottom: 8, // Add some space at the bottom
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    height: '100%', // Fill header height
   },
   headerLogo: {
-    width: 32,
-    height: 32,
+    width: 28, // Slightly smaller logo
+    height: 28,
     marginRight: 8,
-    borderRadius: 16,
+    borderRadius: 14,
   } as ImageStyle,
   headerTitle: {
     fontSize: 20,
@@ -98,17 +97,16 @@ export const styles = StyleSheet.create({
   },
   listWrapper: {
     flex: 1,
-    alignItems: 'center',
     width: '100%',
     ...(isWeb && {
       overflow: 'auto',
+      padding: LAYOUT.contentPadding,
     }),
   } as ViewStyle,
   listContent: {
     width: '100%',
-    maxWidth: LAYOUT.pageWidth,
-    padding: LAYOUT.contentPadding,
-    paddingBottom: 30,
+    maxWidth: LAYOUT.maxWidth,
+    marginHorizontal: 'auto',
   } as ViewStyle,
   placeholderImage: {
     width: 220,
@@ -157,11 +155,13 @@ export const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     ...SHADOWS.small,
+    // When in grid on web, fill the container height
     ...(isWeb && {
-      width: getCardWidth(),
-      aspectRatio: '3/2', // Add fixed aspect ratio for consistent height
-      display: 'flex', // Enable flex layout
+      flex: 1,
+      display: 'flex',
       flexDirection: 'column',
+      justifyContent: 'space-between',
+      height: '100%',
     }),
   } as ViewStyle,
 });

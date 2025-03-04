@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import { FILTERED_ALERT_TYPES } from '../../constants/alerts';
 import { styles } from '../../styles/alerts-screen.styles';
 import { WebAlertGrid } from '../../components/AlertList/WebAlertGrid';
 import { getNotifiedAlerts, addNotifiedAlert, cleanExpiredAlerts, isAlertStillValid } from '../../utils/notificationStorage';
+import { useAlerts } from '../../context/AlertsContext';
 
 const APP_ICON = require('../../assets/images/icon.png');
 
@@ -50,7 +51,7 @@ async function requestNotificationPermission() {
 }
 
 export default function AlertsScreen() {
-  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const { alerts, setAlerts } = useAlerts();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +61,7 @@ export default function AlertsScreen() {
   const lastRefreshTime = React.useRef<number>(Date.now());
   const router = useRouter();
   const [notifiedAlerts, setNotifiedAlerts] = useState<Map<string, any>>(new Map());
+  const handledAlertsRef = useRef<Set<string>>(new Set());
   
   const { playAlarmSound, stopAlarmSound, isPlaying, isLoaded } = useAlertSound();
 
@@ -69,6 +71,13 @@ export default function AlertsScreen() {
       await cleanExpiredAlerts();
       const history = await getNotifiedAlerts();
       setNotifiedAlerts(history);
+      
+      // Initialize handledAlerts from notification history
+      history.forEach((record, id) => {
+        if (isAlertStillValid(id, history)) {
+          handledAlertsRef.current.add(id);
+        }
+      });
     };
 
     initializeNotifications();
@@ -114,35 +123,38 @@ export default function AlertsScreen() {
       );
 
       setAlerts(filteredAlerts);
+      handleTornadoWarnings(filteredAlerts);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch alerts');
+      console.error('Failed to fetch NWS alerts:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [setAlerts]);
 
-      // Get current notification history
-      const currentNotifications = await getNotifiedAlerts();
+  // Add new function to handle tornado warnings
+  const handleTornadoWarnings = useCallback(async (currentAlerts: Alert[]) => {
+    if (!soundEnabled) return;
 
-      // Handle tornado warnings
-      const tornadoWarning = filteredAlerts.find(
-        (alert) => alert.properties.event === 'Tornado Warning' &&
-                   isAlertStillValid(alert.properties.id, currentNotifications)
-      );
+    // Get current notification history
+    const currentNotifications = await getNotifiedAlerts();
 
-      if (tornadoWarning && soundEnabled && isLoaded) {
-        playAlarmSound(AlertEvent.TornadoWarning);
-      } else if (!tornadoWarning && isPlaying) {
-        stopAlarmSound();
-      }
+    // Handle notifications for all valid alerts first
+    if (notificationsEnabled) {
+      for (const alert of currentAlerts) {
+        if (!isAlertStillValid(alert.properties.id, currentNotifications)) {
+          continue;
+        }
 
-      // Handle notifications
-      if (notificationsEnabled) {
-        for (const alert of filteredAlerts) {
-          // Skip if we've already notified about this alert
-          if (!isAlertStillValid(alert.properties.id, currentNotifications)) {
-            continue;
-          }
-
-          // Store notification record first
+        if (!handledAlertsRef.current.has(alert.properties.id)) {
+          // Add to handled set and notification history
+          handledAlertsRef.current.add(alert.properties.id);
           await addNotifiedAlert(alert.properties.id, alert.properties.expires);
           
-          const isTornado = alert.properties.event === 'Tornado Warning';
+          const isTornado = alert.properties.event === AlertEvent.TornadoWarning;
           
+          // Show notification
           if (Platform.OS === 'web') {
             const hasPermission = await requestNotificationPermission();
             if (hasPermission) {
@@ -169,21 +181,25 @@ export default function AlertsScreen() {
               trigger: null,
             });
           }
-        }
-        
-        // Update notifications state
-        setNotifiedAlerts(await getNotifiedAlerts());
-      }
 
-      lastRefreshTime.current = Date.now();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch alerts');
-      console.error('Failed to fetch NWS alerts:', err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+          // Play sound for tornado warnings
+          if (isTornado && soundEnabled) {
+            await playAlarmSound(AlertEvent.TornadoWarning);
+            setTimeout(() => {
+              stopAlarmSound();
+            }, 10000);
+          }
+        }
+      }
     }
-  }, [soundEnabled, notificationsEnabled, playAlarmSound, stopAlarmSound, isLoaded, isPlaying]);
+  }, [soundEnabled, notificationsEnabled, playAlarmSound, stopAlarmSound]);
+
+  // Add effect to handle alerts changes
+  useEffect(() => {
+    if (alerts.length > 0) {
+      handleTornadoWarnings(alerts);
+    }
+  }, [alerts, handleTornadoWarnings]);
 
   useEffect(() => {
     if (Platform.OS !== 'web') {
@@ -195,7 +211,7 @@ export default function AlertsScreen() {
     }
 
     fetchAlerts();
-    const intervalId = setInterval(fetchAlerts, 15000); // Back to 15 seconds
+    const intervalId = setInterval(fetchAlerts, 15000);
 
     return () => {
       clearInterval(intervalId);
@@ -222,6 +238,12 @@ export default function AlertsScreen() {
     }
   };
 
+  useEffect(() => {
+    return () => {
+      handledAlertsRef.current.clear();
+    };
+  }, []);
+
   if (loading && !refreshing) {
     return <LoadingState />;
   }
@@ -241,7 +263,7 @@ export default function AlertsScreen() {
               style={styles.headerLogo}
               defaultSource={APP_ICON}
             />
-            <Text style={styles.headerTitle}>Nado Beep</Text>
+            <Text style={styles.headerTitle}>NadoBeep</Text>
           </View>
           <View style={styles.headerButtons}>
             <TouchableOpacity

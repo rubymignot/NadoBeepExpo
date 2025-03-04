@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, useWindowDimensions, ViewStyle } from 'react-native';
 import { AlertItem } from './AlertItem';
 import { Alert } from '../../types/alerts';
-import { BREAKPOINTS, LAYOUT } from '../../constants/theme';
+import { BREAKPOINTS } from '../../constants/theme';
 
 interface WebAlertGridProps {
   alerts: Alert[];
@@ -10,8 +10,11 @@ interface WebAlertGridProps {
 }
 
 export function WebAlertGrid({ alerts, onPress }: WebAlertGridProps) {
+  const { width: windowWidth } = useWindowDimensions();
+  const isLargeScreen = windowWidth >= BREAKPOINTS.tablet;
+
   return (
-    <View style={styles.grid}>
+    <View style={[styles.grid, isLargeScreen && styles.gridLarge]}>
       {alerts.map((alert) => (
         <View key={alert.properties.id} style={styles.gridItem}>
           <AlertItem alert={alert} onPress={onPress} />
@@ -24,18 +27,15 @@ export function WebAlertGrid({ alerts, onPress }: WebAlertGridProps) {
 const styles = StyleSheet.create({
   grid: {
     width: '100%',
-    maxWidth: LAYOUT.maxWidth,
+  } as ViewStyle,
+  gridLarge: {
     display: 'grid',
-    gridTemplateColumns: `repeat(auto-fill, minmax(${BREAKPOINTS.tablet/2.2}px, 1fr))`,
-    gap: LAYOUT.cardGap,
-    padding: LAYOUT.contentPadding,
-    minHeight: 0,
-    overflow: 'auto',
-    alignItems: 'stretch', // Make sure items stretch to fill height
-  } as any,
+    gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+    gap: '16px',
+    alignItems: 'stretch',
+    gridAutoRows: '1fr', // force equal row heights
+  } as any, // Use 'any' to bypass TypeScript checking for web-specific CSS Grid properties
   gridItem: {
-    width: '100%',
-    display: 'flex', // Enable flex layout
-    alignItems: 'stretch', // Stretch items to fill height
-  },
+    // Removed height: '100%'
+  } as ViewStyle,
 });

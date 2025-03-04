@@ -18,9 +18,19 @@ export function useAlertSound() {
   const loadSound = async () => {
     try {
       if (!soundRef.current) {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: true,
+          shouldDuckAndroid: true,
+        });
+        
         const { sound } = await Audio.Sound.createAsync(
           require('@/assets/sounds/alarm.mp3'),
-          { isLooping: true }
+          { 
+            isLooping: false, // Change to false
+            shouldPlay: false,
+            volume: 1.0
+          }
         );
         soundRef.current = sound;
         setIsLoaded(true);
@@ -46,19 +56,20 @@ export function useAlertSound() {
 
   const playAlarmSound = useCallback(async (type: AlertEvent) => {
     try {
-      if (!isLoaded) {
+      if (!soundRef.current || !isLoaded) {
         await loadSound();
       }
       
-      if (soundRef.current) {
+      if (soundRef.current && !isPlaying) {
         await soundRef.current.setPositionAsync(0);
+        await soundRef.current.setIsLoopingAsync(false); // Ensure no looping
         await soundRef.current.playAsync();
         setIsPlaying(true);
       }
     } catch (error) {
       console.error('Error playing sound:', error);
     }
-  }, [isLoaded]);
+  }, [isLoaded, isPlaying]);
 
   const stopAlarmSound = useCallback(async () => {
     try {

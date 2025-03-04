@@ -5,43 +5,16 @@ import * as Notifications from 'expo-notifications';
 import { useAlertSound } from '../../hooks/useAlertSound';
 import { styles } from '@/styles/about.styles';
 import { AlertEvent } from '../../types/alerts';
+import { useAlerts } from '../../context/AlertsContext';
+import { createTestTornadoWarning } from '../../utils/testAlerts';
 
 export default function AboutScreen() {
   const { playAlarmSound, stopAlarmSound } = useAlertSound();
+  const { addTemporaryAlert } = useAlerts();
 
-  const testTornadoWarning = async () => {
-    // Use the correct enum value
-    playAlarmSound(AlertEvent.TestTornadoWarning);
-
-    // Show test notification
-    if (Platform.OS === 'web' && 'Notification' in window) {
-      const permission = await window.Notification.requestPermission();
-      if (permission === 'granted') {
-        new window.Notification('🚨 TEST - TORNADO WARNING 🚨', {
-          body: 'This is a test tornado warning notification.',
-          icon: '/notification-icon.png',
-          tag: 'test-warning',
-        });
-      }
-    } else {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: '🚨 TEST - TORNADO WARNING 🚨',
-          body: 'This is a test tornado warning notification.',
-          data: { alertId: 'test-warning' },
-          sound: true,
-          priority: Notifications.AndroidNotificationPriority.MAX,
-          vibrate: [0, 250, 250, 250],
-          color: '#e74c3c',
-        },
-        trigger: null,
-      });
-    }
-
-    // Stop alarm after 5 seconds
-    setTimeout(() => {
-      stopAlarmSound();
-    }, 5000);
+  const testTornadoWarning = () => {
+    const testAlert = createTestTornadoWarning();
+    addTemporaryAlert(testAlert, 5000); // Will be automatically removed after 5 seconds
   };
 
   return (
@@ -56,14 +29,14 @@ export default function AboutScreen() {
             source={require('../../assets/images/icon.png')} 
             style={styles.headerLogo}
           />
-          <Text style={styles.headerTitle}>Nado Beep</Text>
+          <Text style={styles.headerTitle}>NadoBeep</Text>
         </View>
         
         <View style={styles.section}>
           <Info size={40} color="#e74c3c" style={styles.icon} />
-          <Text style={styles.title}>About Nado Beep</Text>
+          <Text style={styles.title}>About NadoBeep</Text>
           <Text style={styles.description}>
-            Nado Beep is a specialized weather alert app that focuses on the most critical weather warnings
+            NadoBeep is a specialized weather alert app that focuses on the most critical weather warnings
             from the National Weather Service (NWS): Tornado Warnings, Flash Flood Warnings, and Severe Thunderstorm Warnings.
           </Text>
         </View>
@@ -270,13 +243,13 @@ export default function AboutScreen() {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Nado Beep • Version 1.0.0
+            NadoBeep • Version 1.0.0
           </Text>
           <Text style={styles.footerText}>
             Created with Expo and React Native
           </Text>
           <Text style={styles.footerText}>
-            © 2025 Nado Beep
+            © 2025 NadoBeep
           </Text>
         </View>
       </View>

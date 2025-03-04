@@ -5,6 +5,7 @@ import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_7
 import { SplashScreen } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { AlertsProvider } from '../context/AlertsContext';
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -117,12 +118,12 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <AlertsProvider>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" options={{ title: 'Oops!' }} />
       </Stack>
       <StatusBar style="light" />
-    </>
+    </AlertsProvider>
   );
 }

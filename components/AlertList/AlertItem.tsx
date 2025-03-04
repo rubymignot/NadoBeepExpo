@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, Platform } from 'react-native';
 import { TriangleAlert as AlertTriangle } from 'lucide-react-native';
 import { Alert } from '../../types/alerts';
 import { EVENT_COLORS, SEVERITY_COLORS } from '../../constants/alerts';
@@ -82,6 +82,15 @@ const styles = StyleSheet.create({
     elevation: 3,
     transform: [{ scale: 1 }],
     position: 'relative',
+    ...Platform.select({
+      web: {
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        height: '100%',
+      },
+    }),
   },
   alertHeader: {
     flexDirection: 'row',
