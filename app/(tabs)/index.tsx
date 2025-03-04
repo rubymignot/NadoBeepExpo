@@ -36,10 +36,16 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// Web notification permission request
+// Update the notification permission function
 async function requestNotificationPermission() {
   if (Platform.OS === 'web' && 'Notification' in window) {
     try {
+      // For Chrome on Android, we need to check if notifications are already denied
+      if (Notification.permission === 'denied') {
+        return false;
+      }
+      
+      // Request permission and handle the promise properly
       const permission = await window.Notification.requestPermission();
       return permission === 'granted';
     } catch (err) {
@@ -62,6 +68,7 @@ export default function AlertsScreen() {
   const router = useRouter();
   const [notifiedAlerts, setNotifiedAlerts] = useState<Map<string, any>>(new Map());
   const handledAlertsRef = useRef<Set<string>>(new Set());
+  const [userInteracted, setUserInteracted] = useState(false);
   
   const { playAlarmSound, stopAlarmSound, isPlaying, isLoaded } = useAlertSound();
 
@@ -231,7 +238,32 @@ export default function AlertsScreen() {
     });
   };
 
-  const handleSoundToggle = () => {
+  // Add sound initialization on first user interaction
+  const initializeSound = useCallback(async () => {
+    if (!userInteracted) {
+      setUserInteracted(true);
+      if (Platform.OS === 'web') {
+        // Create and immediately suspend a short silent audio context
+        // This primes audio for future playback
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        audioContext.suspend();
+        
+        // Resume audio context on next user interaction
+        const resumeAudio = () => {
+          audioContext.resume();
+          document.removeEventListener('touchstart', resumeAudio);
+          document.removeEventListener('click', resumeAudio);
+        };
+        
+        document.addEventListener('touchstart', resumeAudio, { once: true });
+        document.addEventListener('click', resumeAudio, { once: true });
+      }
+    }
+  }, [userInteracted]);
+
+  // Update sound toggle to handle initialization
+  const handleSoundToggle = async () => {
+    await initializeSound();
     setSoundEnabled(!soundEnabled);
     if (soundEnabled && isPlaying) {
       stopAlarmSound();
@@ -267,7 +299,13 @@ export default function AlertsScreen() {
           </View>
           <View style={styles.headerButtons}>
             <TouchableOpacity
-              onPress={() => setNotificationsEnabled(!notificationsEnabled)}
+              onPress={async () => {
+                await initializeSound();
+                setNotificationsEnabled(!notificationsEnabled);
+                if (notificationsEnabled) {
+                  await requestNotificationPermission();
+                }
+              }}
               style={styles.headerIconButton}
             >
               {notificationsEnabled ? (
