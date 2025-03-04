@@ -3,6 +3,8 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { TriangleAlert as AlertTriangle } from 'lucide-react-native';
 import { Alert } from '../../types/alerts';
 import { EVENT_COLORS, SEVERITY_COLORS } from '../../constants/alerts';
+import { getRelativeTime } from '../../utils/dateUtils';
+import { COLORS, FONTS } from '@/constants/theme';
 
 interface AlertItemProps {
   alert: Alert;
@@ -46,20 +48,22 @@ export function AlertItem({ alert, onPress }: AlertItemProps) {
           {alert.properties.severity}
         </Text>
       </View>
+      <Text style={styles.issuedTime}>
+        Issued: {getRelativeTime(alert.properties.sent)}
+      </Text>
       <Text style={styles.headline}>{alert.properties.headline}</Text>
       <Text style={styles.areaDesc}>{alert.properties.areaDesc}</Text>
       <View style={styles.alertFooter}>
+        {alert.properties.event === 'Tornado Warning' && (
+          <View style={styles.tornadoWarning}>
+            <AlertTriangle size={16} color="#fff" />
+            <Text style={styles.tornadoWarningText}>TORNADO WARNING</Text>
+          </View>
+        )}
         <Text style={styles.timeInfo}>
           Expires: {formatDate(alert.properties.expires)}
         </Text>
       </View>
-
-      {alert.properties.event === 'Tornado Warning' && (
-        <View style={styles.tornadoWarning}>
-          <AlertTriangle size={16} color="#fff" />
-          <Text style={styles.tornadoWarningText}>TORNADO WARNING</Text>
-        </View>
-      )}
     </TouchableOpacity>
   );
 }
@@ -116,7 +120,8 @@ const styles = StyleSheet.create({
   },
   alertFooter: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   timeInfo: {
     fontSize: 12,
@@ -124,14 +129,10 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
   },
   tornadoWarning: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
     backgroundColor: '#7b241c',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderTopRightRadius: 12,
-    borderBottomLeftRadius: 12,
+    borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#000',
@@ -146,5 +147,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 4,
     fontFamily: 'Inter-Bold',
+  },
+  issuedTime: {
+    fontSize: 12,
+    color: COLORS.text.secondary,
+    fontFamily: FONTS.regular,
+    marginTop: 8,
+    marginBottom: 12,
   },
 });

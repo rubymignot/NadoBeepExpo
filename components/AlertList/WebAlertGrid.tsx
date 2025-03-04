@@ -29,8 +29,13 @@ const styles = StyleSheet.create({
     gridTemplateColumns: `repeat(auto-fill, minmax(${BREAKPOINTS.tablet/2.2}px, 1fr))`,
     gap: LAYOUT.cardGap,
     padding: LAYOUT.contentPadding,
+    minHeight: 0,
+    overflow: 'auto',
+    alignItems: 'stretch', // Make sure items stretch to fill height
   } as any,
   gridItem: {
     width: '100%',
+    display: 'flex', // Enable flex layout
+    alignItems: 'stretch', // Stretch items to fill height
   },
 });

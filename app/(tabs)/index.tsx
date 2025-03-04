@@ -22,7 +22,7 @@ import { Alert, AlertsResponse, AlertEvent } from '../../types/alerts';
 import { FILTERED_ALERT_TYPES } from '../../constants/alerts';
 import { styles } from '../../styles/alerts-screen.styles';
 import { WebAlertGrid } from '../../components/AlertList/WebAlertGrid';
-import { getNotifiedAlerts, addNotifiedAlert } from '../../utils/notificationStorage';
+import { getNotifiedAlerts, addNotifiedAlert, cleanExpiredAlerts, isAlertStillValid } from '../../utils/notificationStorage';
 
 const APP_ICON = require('../../assets/images/icon.png');
 
@@ -59,13 +59,19 @@ export default function AlertsScreen() {
   const notifiedAlertsRef = React.useRef<Set<string>>(new Set());
   const lastRefreshTime = React.useRef<number>(Date.now());
   const router = useRouter();
-  const [notifiedAlerts, setNotifiedAlerts] = useState<Set<string>>(new Set());
+  const [notifiedAlerts, setNotifiedAlerts] = useState<Map<string, any>>(new Map());
   
   const { playAlarmSound, stopAlarmSound, isPlaying, isLoaded } = useAlertSound();
 
   useEffect(() => {
-    // Load notification history on mount
-    getNotifiedAlerts().then(setNotifiedAlerts);
+    // Load notification history and clean expired alerts on mount
+    const initializeNotifications = async () => {
+      await cleanExpiredAlerts();
+      const history = await getNotifiedAlerts();
+      setNotifiedAlerts(history);
+    };
+
+    initializeNotifications();
     
     // Configure background notification handler
     const backgroundSubscription = Notifications.addNotificationResponseReceivedListener(response => {
@@ -109,9 +115,13 @@ export default function AlertsScreen() {
 
       setAlerts(filteredAlerts);
 
+      // Get current notification history
+      const currentNotifications = await getNotifiedAlerts();
+
       // Handle tornado warnings
       const tornadoWarning = filteredAlerts.find(
-        (alert) => alert.properties.event === 'Tornado Warning'
+        (alert) => alert.properties.event === 'Tornado Warning' &&
+                   isAlertStillValid(alert.properties.id, currentNotifications)
       );
 
       if (tornadoWarning && soundEnabled && isLoaded) {
@@ -123,11 +133,13 @@ export default function AlertsScreen() {
       // Handle notifications
       if (notificationsEnabled) {
         for (const alert of filteredAlerts) {
-          if (notifiedAlerts.has(alert.properties.id)) continue;
+          // Skip if we've already notified about this alert
+          if (!isAlertStillValid(alert.properties.id, currentNotifications)) {
+            continue;
+          }
 
-          // Add to notification history
-          await addNotifiedAlert(alert.properties.id);
-          setNotifiedAlerts(prev => new Set([...prev, alert.properties.id]));
+          // Store notification record first
+          await addNotifiedAlert(alert.properties.id, alert.properties.expires);
           
           const isTornado = alert.properties.event === 'Tornado Warning';
           
@@ -135,9 +147,7 @@ export default function AlertsScreen() {
             const hasPermission = await requestNotificationPermission();
             if (hasPermission) {
               new window.Notification(
-                alert.properties.event === 'Tornado Warning' 
-                  ? '🚨 TORNADO WARNING 🚨' 
-                  : alert.properties.event,
+                isTornado ? '🚨 TORNADO WARNING 🚨' : alert.properties.event,
                 {
                   body: alert.properties.headline,
                   icon: '/notification-icon.png',
@@ -150,10 +160,7 @@ export default function AlertsScreen() {
               content: {
                 title: isTornado ? '🚨 TORNADO WARNING 🚨' : alert.properties.event,
                 body: alert.properties.headline,
-                data: { 
-                  alertId: alert.properties.id,
-                  isTornado
-                },
+                data: { alertId: alert.properties.id, isTornado },
                 sound: true,
                 priority: Notifications.AndroidNotificationPriority.MAX,
                 vibrate: [0, 250, 250, 250],
@@ -163,6 +170,9 @@ export default function AlertsScreen() {
             });
           }
         }
+        
+        // Update notifications state
+        setNotifiedAlerts(await getNotifiedAlerts());
       }
 
       lastRefreshTime.current = Date.now();
@@ -185,7 +195,7 @@ export default function AlertsScreen() {
     }
 
     fetchAlerts();
-    const intervalId = setInterval(fetchAlerts, 15000);
+    const intervalId = setInterval(fetchAlerts, 15000); // Back to 15 seconds
 
     return () => {
       clearInterval(intervalId);

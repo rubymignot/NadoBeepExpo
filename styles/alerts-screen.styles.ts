@@ -21,7 +21,11 @@ export const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-  },
+    ...(isWeb && {
+      height: '100vh',
+      overflow: 'hidden',
+    }),
+  } as ViewStyle,
   innerContainer: {
     flex: 1,
     width: '100%',
@@ -96,18 +100,15 @@ export const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     width: '100%',
-  },
+    ...(isWeb && {
+      overflow: 'auto',
+    }),
+  } as ViewStyle,
   listContent: {
     width: '100%',
     maxWidth: LAYOUT.pageWidth,
     padding: LAYOUT.contentPadding,
     paddingBottom: 30,
-    ...(isWeb && {
-      display: 'flex',
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'flex-start',
-    }),
   } as ViewStyle,
   placeholderImage: {
     width: 220,
@@ -158,6 +159,9 @@ export const styles = StyleSheet.create({
     ...SHADOWS.small,
     ...(isWeb && {
       width: getCardWidth(),
+      aspectRatio: '3/2', // Add fixed aspect ratio for consistent height
+      display: 'flex', // Enable flex layout
+      flexDirection: 'column',
     }),
   } as ViewStyle,
 });
