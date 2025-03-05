@@ -30,7 +30,16 @@ export const styles = StyleSheet.create({
   },
   headerGradient: {
     width: '100%',
-    height: Platform.OS === 'ios' ? 80 : 65,
+    height: Platform.select({
+      ios: 80,
+      android: 80,
+      web: 65,
+    }),
+    paddingTop: Platform.select({
+      ios: 35,
+      android: 25,
+      web: 0,
+    }),
     justifyContent: 'flex-end', // Align content to bottom of gradient
   },
   header: {
@@ -40,8 +49,12 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: LAYOUT.contentPadding,
-    height: 44, // Fixed height for header
+    paddingHorizontal: Platform.select({
+      web: LAYOUT.contentPadding,
+      android: 16,
+      ios: LAYOUT.contentPadding,
+    }),
+    height: 50, // Fixed height for header
     marginBottom: 8, // Add some space at the bottom
   },
   headerContent: {
@@ -63,6 +76,29 @@ export const styles = StyleSheet.create({
   },
   headerButtons: {
     flexDirection: 'row',
+    alignItems: 'center',
+  },
+  volumeControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginLeft: 8,
+    width: Platform.select({
+      web: 150,
+      default: 130,
+    }),
+  },
+  volumeSlider: {
+    flex: 1,
+    height: 32,
+    marginHorizontal: 8,
+  },
+  volumeIconButton: {
+    padding: 4,
+    borderRadius: 16,
   },
   headerIconButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -101,6 +137,9 @@ export const styles = StyleSheet.create({
     ...(isWeb && {
       overflow: 'auto',
       padding: LAYOUT.contentPadding,
+    }),
+    ...(Platform.OS === 'android' && {
+      paddingHorizontal: 16,
     }),
   } as ViewStyle,
   listContent: {

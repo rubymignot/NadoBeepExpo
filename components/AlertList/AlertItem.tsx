@@ -72,8 +72,14 @@ const styles = StyleSheet.create({
   alertCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    padding: Platform.select({
+      android: 12,
+      default: 16,
+    }),
+    marginBottom: Platform.select({
+      android: 12,
+      default: 16,
+    }),
     borderLeftWidth: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

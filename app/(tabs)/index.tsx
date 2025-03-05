@@ -11,50 +11,23 @@ import {
 import { Audio } from 'expo-av';
 import { useRouter } from 'expo-router';
 import { Volume2, VolumeX, Bell, BellOff } from 'lucide-react-native';
-import * as Notifications from 'expo-notifications';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import Slider from '@react-native-community/slider';
 
 import { AlertItem } from '../../components/AlertList/AlertItem';
 import { LoadingState } from '../../components/AlertList/LoadingState';
 import { useAlertSound } from '../../hooks/useAlertSound';
+import { useNotifications } from '../../hooks/useNotifications';
 import { Alert, AlertsResponse, AlertEvent } from '../../types/alerts';
 import { FILTERED_ALERT_TYPES } from '../../constants/alerts';
 import { styles } from '../../styles/alerts-screen.styles';
 import { WebAlertGrid } from '../../components/AlertList/WebAlertGrid';
-import { getNotifiedAlerts, addNotifiedAlert, cleanExpiredAlerts, isAlertStillValid } from '../../utils/notificationStorage';
 import { useAlerts } from '../../context/AlertsContext';
+import * as Device from 'expo-device';
+import { useBackgroundTask } from '@/context/BackgroundTaskContext';
 
 const APP_ICON = require('../../assets/images/icon.png');
-
-// Add notification configuration
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
-
-// Update the notification permission function
-async function requestNotificationPermission() {
-  if (Platform.OS === 'web' && 'Notification' in window) {
-    try {
-      // For Chrome on Android, we need to check if notifications are already denied
-      if (Notification.permission === 'denied') {
-        return false;
-      }
-      
-      // Request permission and handle the promise properly
-      const permission = await window.Notification.requestPermission();
-      return permission === 'granted';
-    } catch (err) {
-      console.error('Error requesting notification permission:', err);
-      return false;
-    }
-  }
-  return false;
-}
 
 export default function AlertsScreen() {
   const { alerts, setAlerts } = useAlerts();
@@ -62,62 +35,39 @@ export default function AlertsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const notifiedAlertsRef = React.useRef<Set<string>>(new Set());
-  const lastRefreshTime = React.useRef<number>(Date.now());
   const router = useRouter();
-  const [notifiedAlerts, setNotifiedAlerts] = useState<Map<string, any>>(new Map());
-  const handledAlertsRef = useRef<Set<string>>(new Set());
   const [userInteracted, setUserInteracted] = useState(false);
+  const { isTaskRegistered, registerTask } = useBackgroundTask();
   
-  const { playAlarmSound, stopAlarmSound, isPlaying, isLoaded } = useAlertSound();
+  const { playAlarmSound, stopAlarmSound, isPlaying, isLoaded, volume, setVolume } = useAlertSound();
+  
+  const { 
+    notificationsEnabled, 
+    toggleNotifications, 
+    handleAlertNotifications,
+    handleManualRefresh,
+    registerAlertsWithoutNotification,
+  } = useNotifications({
+    soundEnabled,
+    playAlarmSound,
+    stopAlarmSound
+  });
 
+  // Track if we've done initial load
+  const initialLoadDone = useRef<boolean>(false);
+
+  // Ensure background task is registered
   useEffect(() => {
-    // Load notification history and clean expired alerts on mount
-    const initializeNotifications = async () => {
-      await cleanExpiredAlerts();
-      const history = await getNotifiedAlerts();
-      setNotifiedAlerts(history);
-      
-      // Initialize handledAlerts from notification history
-      history.forEach((record, id) => {
-        if (isAlertStillValid(id, history)) {
-          handledAlertsRef.current.add(id);
-        }
-      });
-    };
-
-    initializeNotifications();
-    
-    // Configure background notification handler
-    const backgroundSubscription = Notifications.addNotificationResponseReceivedListener(response => {
-      const alertId = response.notification.request.content.data?.alertId;
-      if (alertId) {
-        router.push({
-          pathname: '/(tabs)/alert-details',
-          params: { alertId },
-        });
-      }
-    });
-
-    // Configure foreground notification handler
-    const foregroundSubscription = Notifications.addNotificationReceivedListener(notification => {
-      if (soundEnabled && notification.request.content.data?.isTornado) {
-        playAlarmSound(AlertEvent.TornadoWarning);
-      }
-    });
-
-    return () => {
-      backgroundSubscription.remove();
-      foregroundSubscription.remove();
-      stopAlarmSound();
-    };
-  }, []);
+    if (Platform.OS !== 'web' && Device.isDevice && !isTaskRegistered) {
+      registerTask();
+    }
+  }, [isTaskRegistered, registerTask]);
 
   // Fetch alerts function
-  const fetchAlerts = useCallback(async () => {
+  const fetchAlerts = useCallback(async (isManualRefresh = false) => {
     try {
       setError(null);
+
       const response = await fetch('https://api.weather.gov/alerts/active');
 
       if (!response.ok) {
@@ -126,11 +76,23 @@ export default function AlertsScreen() {
 
       const data: AlertsResponse = await response.json();
       const filteredAlerts = data.features.filter((alert) =>
-        FILTERED_ALERT_TYPES.includes(alert.properties.event as AlertEvent)
-      );
+              FILTERED_ALERT_TYPES.includes(alert.properties.event as AlertEvent)
+            );
 
       setAlerts(filteredAlerts);
-      handleTornadoWarnings(filteredAlerts);
+      
+      // Process notifications differently based on context
+      if (!initialLoadDone.current) {
+        // For initial load, register alerts without showing notifications
+        initialLoadDone.current = true;
+        await registerAlertsWithoutNotification(filteredAlerts);
+      } else if (isManualRefresh) {
+        // For manual refresh, only show notifications for alerts newer than the last refresh
+        await handleManualRefresh(filteredAlerts);
+      } else {
+        // For auto refresh, show notifications for any unnotified alerts
+        await handleAlertNotifications(filteredAlerts);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch alerts');
       console.error('Failed to fetch NWS alerts:', err);
@@ -138,75 +100,7 @@ export default function AlertsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [setAlerts]);
-
-  // Add new function to handle tornado warnings
-  const handleTornadoWarnings = useCallback(async (currentAlerts: Alert[]) => {
-    if (!soundEnabled) return;
-
-    // Get current notification history
-    const currentNotifications = await getNotifiedAlerts();
-
-    // Handle notifications for all valid alerts first
-    if (notificationsEnabled) {
-      for (const alert of currentAlerts) {
-        if (!isAlertStillValid(alert.properties.id, currentNotifications)) {
-          continue;
-        }
-
-        if (!handledAlertsRef.current.has(alert.properties.id)) {
-          // Add to handled set and notification history
-          handledAlertsRef.current.add(alert.properties.id);
-          await addNotifiedAlert(alert.properties.id, alert.properties.expires);
-          
-          const isTornado = alert.properties.event === AlertEvent.TornadoWarning;
-          
-          // Show notification
-          if (Platform.OS === 'web') {
-            const hasPermission = await requestNotificationPermission();
-            if (hasPermission) {
-              new window.Notification(
-                isTornado ? '🚨 TORNADO WARNING 🚨' : alert.properties.event,
-                {
-                  body: alert.properties.headline,
-                  icon: '/notification-icon.png',
-                  tag: alert.properties.id,
-                }
-              );
-            }
-          } else {
-            await Notifications.scheduleNotificationAsync({
-              content: {
-                title: isTornado ? '🚨 TORNADO WARNING 🚨' : alert.properties.event,
-                body: alert.properties.headline,
-                data: { alertId: alert.properties.id, isTornado },
-                sound: true,
-                priority: Notifications.AndroidNotificationPriority.MAX,
-                vibrate: [0, 250, 250, 250],
-                color: '#e74c3c',
-              },
-              trigger: null,
-            });
-          }
-
-          // Play sound for tornado warnings
-          if (isTornado && soundEnabled) {
-            await playAlarmSound(AlertEvent.TornadoWarning);
-            setTimeout(() => {
-              stopAlarmSound();
-            }, 10000);
-          }
-        }
-      }
-    }
-  }, [soundEnabled, notificationsEnabled, playAlarmSound, stopAlarmSound]);
-
-  // Add effect to handle alerts changes
-  useEffect(() => {
-    if (alerts.length > 0) {
-      handleTornadoWarnings(alerts);
-    }
-  }, [alerts, handleTornadoWarnings]);
+  }, [setAlerts, handleAlertNotifications, handleManualRefresh, registerAlertsWithoutNotification]);
 
   useEffect(() => {
     if (Platform.OS !== 'web') {
@@ -217,8 +111,14 @@ export default function AlertsScreen() {
       });
     }
 
-    fetchAlerts();
-    const intervalId = setInterval(fetchAlerts, 15000);
+    // Initial fetch 
+    fetchAlerts(false);
+    
+    // When app is in foreground, we use this interval
+    // Background task handles the fetching when app is closed
+    const intervalId = setInterval(() => {
+      fetchAlerts(false);
+    }, 15000);
 
     return () => {
       clearInterval(intervalId);
@@ -226,9 +126,11 @@ export default function AlertsScreen() {
     };
   }, [fetchAlerts, stopAlarmSound]);
 
+  // Manually trigger refresh with appropriate flag
   const onRefresh = () => {
     setRefreshing(true);
-    fetchAlerts();
+    // This is a manual refresh
+    fetchAlerts(true);
   };
 
   const handleAlertPress = (alert: Alert) => {
@@ -238,43 +140,47 @@ export default function AlertsScreen() {
     });
   };
 
-  // Add sound initialization on first user interaction
+  // Fixed sound initialization on first user interaction
   const initializeSound = useCallback(async () => {
     if (!userInteracted) {
       setUserInteracted(true);
       if (Platform.OS === 'web') {
-        // Create and immediately suspend a short silent audio context
-        // This primes audio for future playback
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        audioContext.suspend();
-        
-        // Resume audio context on next user interaction
-        const resumeAudio = () => {
-          audioContext.resume();
-          document.removeEventListener('touchstart', resumeAudio);
-          document.removeEventListener('click', resumeAudio);
-        };
-        
-        document.addEventListener('touchstart', resumeAudio, { once: true });
-        document.addEventListener('click', resumeAudio, { once: true });
+        try {
+          // Create and immediately suspend a short silent audio context
+          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+          audioContext.suspend();
+          
+          // Resume audio context on next user interaction
+          const resumeAudio = () => {
+            audioContext.resume().catch(console.error);
+            document.removeEventListener('touchstart', resumeAudio);
+            document.removeEventListener('click', resumeAudio);
+          };
+          
+          document.addEventListener('touchstart', resumeAudio, { once: true });
+          document.addEventListener('click', resumeAudio, { once: true });
+        } catch (error) {
+          console.error("Failed to initialize audio context:", error);
+        }
       }
     }
   }, [userInteracted]);
 
-  // Update sound toggle to handle initialization
+  // Fixed sound toggle
   const handleSoundToggle = async () => {
     await initializeSound();
-    setSoundEnabled(!soundEnabled);
+    setSoundEnabled(prev => !prev);
     if (soundEnabled && isPlaying) {
       stopAlarmSound();
     }
   };
 
-  useEffect(() => {
-    return () => {
-      handledAlertsRef.current.clear();
-    };
-  }, []);
+  // Fixed mute toggle with debounce
+  const toggleMute = useCallback(async () => {
+    await initializeSound();
+    const newVolume = volume > 0 ? 0 : 1;
+    setVolume(newVolume);
+  }, [initializeSound, volume, setVolume]);
 
   if (loading && !refreshing) {
     return <LoadingState />;
@@ -301,12 +207,10 @@ export default function AlertsScreen() {
             <TouchableOpacity
               onPress={async () => {
                 await initializeSound();
-                setNotificationsEnabled(!notificationsEnabled);
-                if (notificationsEnabled) {
-                  await requestNotificationPermission();
-                }
+                toggleNotifications();
               }}
               style={styles.headerIconButton}
+              activeOpacity={0.7}
             >
               {notificationsEnabled ? (
                 <Bell size={24} color="#fff" />
@@ -314,16 +218,31 @@ export default function AlertsScreen() {
                 <BellOff size={24} color="#fffa" />
               )}
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleSoundToggle}
-              style={styles.headerIconButton}
-            >
-              {soundEnabled ? (
-                <Volume2 size={24} color="#fff" />
-              ) : (
-                <VolumeX size={24} color="#fffa" />
-              )}
-            </TouchableOpacity>
+            
+            <View style={styles.volumeControl}>
+              <TouchableOpacity
+                onPress={toggleMute}
+                style={styles.volumeIconButton}
+                activeOpacity={0.7}
+                disabled={false}
+              >
+                {volume > 0 ? (
+                  <Volume2 size={18} color="#fff" />
+                ) : (
+                  <VolumeX size={18} color="#fffa" />
+                )}
+              </TouchableOpacity>
+              <Slider
+                style={styles.volumeSlider}
+                minimumValue={0}
+                maximumValue={1}
+                value={volume}
+                onValueChange={setVolume}
+                minimumTrackTintColor="#fff"
+                maximumTrackTintColor="rgba(255,255,255,0.3)"
+                thumbTintColor="#fff"
+              />
+            </View>
           </View>
         </View>
       </LinearGradient>
@@ -331,7 +250,7 @@ export default function AlertsScreen() {
       <View style={styles.listWrapper}>
         <BlurView intensity={80} tint="light" style={styles.filterInfo}>
           <Text style={styles.filterText}>
-            Showing only: Tornado, Flash Flood, and Severe Thunderstorm Warnings
+            Showing only: Tornado, Flash Flood, Special Marine and Severe Thunderstorm Warnings
           </Text>
           <Text style={styles.refreshText}>Auto-refreshes every 15 seconds</Text>
         </BlurView>

@@ -21,8 +21,18 @@
       "bundleIdentifier": "com.nadobeep.app",
       "infoPlist": {
         "UIBackgroundModes": [
-          "remote-notification"
-        ]
+          "remote-notification",
+          "fetch",
+          "processing",
+          "audio"
+        ],
+        "BGTaskSchedulerPermittedIdentifiers": [
+          "background-fetch-alerts"
+        ],
+        "aps": {
+          "critical-alert": true,
+          "sound": true
+        }
       }
     },
     "android": {
@@ -31,7 +41,33 @@
         "backgroundColor": "#e74c3c"
       },
       "package": "com.nadobeep.app",
-      "useNextNotificationsApi": true
+      "useNextNotificationsApi": true,
+      "permissions": [
+        "NOTIFICATIONS",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "SCHEDULE_EXACT_ALARM",
+        "FOREGROUND_SERVICE",
+        "POST_NOTIFICATIONS",
+        "WAKE_LOCK",
+        "ACCESS_NETWORK_STATE",
+        "INTERNET"
+      ],
+      "allowBackgroundNotificationTapping": true,
+      "foregroundService": {
+        "name": "Weather Alert Monitor",
+        "notification": {
+          "title": "NadoBeep is active",
+          "body": "Monitoring for severe weather alerts",
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#e74c3c"
+        }
+      },
+      "intentFilters": [
+        {
+          "action": "android.intent.action.BOOT_COMPLETED"
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -50,18 +86,28 @@
           "color": "#e74c3c",
           "sounds": [
             "./assets/sounds/alarm.mp3"
-          ]
+          ],
+          "priority": "max",
+          "importance": "max",
+          "foregroundPresentation": true,
+          "allowAlert": true,
+          "allowSound": true,
+          "allowBadge": true,
+          "criticalAlerts": true
         }
       ],
       [
-        "expo-notifications",
+        "expo-background-fetch",
         {
-          "icon": "./assets/notification-icon.png",
-          "color": "#e74c3c",
-          "sounds": [
-            "./assets/sounds/tornado-warning.wav"
-          ],
-          "mode": "production"
+          "startOnBoot": true
+        }
+      ],
+      [
+        "expo-task-manager",
+        {
+          "taskName": "background-fetch-alerts",
+          "startOnBoot": true,
+          "frequency": 900
         }
       ]
     ],
@@ -73,7 +119,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "872b0138-3789-4a60-a4b9-9c87d0f16fa3"
+        "projectId": "1eb97812-7557-4b38-a0e8-07eedab1862c"
       }
     }
   }

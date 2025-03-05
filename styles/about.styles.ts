@@ -301,4 +301,20 @@ export const styles = StyleSheet.create({
     fontStyle: 'italic',
     fontFamily: 'Inter-Regular',
   },
+  volumeControl: {
+    width: '100%',
+    marginVertical: 16,
+    padding: 8,
+  },
+  volumeLabel: {
+    fontSize: 14,
+    color: '#2c3e50',
+    marginBottom: 8,
+    textAlign: 'center',
+    fontFamily: 'Inter-Medium',
+  },
+  volumeSlider: {
+    width: '100%',
+    height: 40,
+  },
 });
