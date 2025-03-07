@@ -1,309 +1,662 @@
-import React, { useCallback } from 'react';
-import { View, Text, ScrollView, Linking, TouchableOpacity, Image, Platform } from 'react-native';
-import { ExternalLink, TriangleAlert as AlertTriangle, Info, Volume2, Bell, Bug, RefreshCw } from 'lucide-react-native';
-import * as Notifications from 'expo-notifications';
-import { useAlertSound } from '../../hooks/useAlertSound';
-import { styles } from '@/styles/about.styles';
-import { AlertEvent } from '../../types/alerts';
-import { useAlerts } from '../../context/AlertsContext';
-import { createTestTornadoWarning } from '../../utils/testAlerts';
+import { StyleSheet, View, Text, ScrollView, Image, Linking, TouchableOpacity, Platform, Switch, ActivityIndicator } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { ExternalLink, Github, Info, Twitter, AlertTriangle, Bug } from 'lucide-react-native';
+import { StatusBar } from 'expo-status-bar';
+import { COLORS, FONTS } from '@/constants/theme';
+import { useAlertsContext } from '@/context/AlertsContext';
+import { showNotification } from '@/services/notificationService';
+import { playAlarmSound, stopAlarmSound } from '@/services/soundService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const APP_ICON = require('../../assets/images/icon.png');
+import { version as appVersion } from '../../package.json';
+// Import app version from package.json
+const VERSION = appVersion;
+const isWeb = Platform.OS === 'web';
 
 export default function AboutScreen() {
-  const { playAlarmSound, stopAlarmSound } = useAlertSound();
-  const { addTemporaryAlert } = useAlerts();
+  const [testingSound, setTestingSound] = useState(false);
+  const { 
+    state: { isSoundEnabled, soundVolume, notificationsEnabled },
+    toggleSound,
+    toggleNotifications
+  } = useAlertsContext();
+  
+  const handleToggleNotifications = useCallback(async (value: boolean) => {
+    await toggleNotifications();
+  }, [toggleNotifications]);
+  
+  const openLink = (url: string) => {
+    Linking.openURL(url).catch(err => console.error("Couldn't open link", err));
+  };
 
-  // Add test notification functionality
-  const testTornadoWarning = useCallback(async () => {
+  // Test tornado warning notification and sound
+  const testTornadoWarning = async () => {
     try {
-      // Create a test alert
-      const testAlert = createTestTornadoWarning();
+      setTestingSound(true);
       
-      // Add the test alert to the UI
-      addTemporaryAlert(testAlert, 10000); // Will be automatically removed after 10 seconds
+      // Show test notification
+      await showNotification(
+        'Test Tornado Warning',
+        'This is a TEST tornado warning notification.',
+        'test-tornado-warning',
+        true
+      );
       
-      // Play the tornado warning sound
-      await playAlarmSound(AlertEvent.TornadoWarning);
-      
-      // Schedule a test notification
-      if (Platform.OS === 'web' && 'Notification' in window) {
-        if (Notification.permission === 'granted') {
-          new window.Notification('🚨 TEST: TORNADO WARNING 🚨', {
-            body: 'This is a TEST notification. In a real event, take shelter immediately.',
-            icon: '/notification-icon.png',
-            tag: 'test-tornado-warning',
-          });
-        }
+      // Play alarm sound if enabled
+      if (isSoundEnabled) {
+        await playAlarmSound(soundVolume);
+        
+        // Stop the sound after 5 seconds
+        setTimeout(() => {
+          stopAlarmSound();
+          setTestingSound(false);
+        }, 5000);
       } else {
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: '🚨 TEST: TORNADO WARNING 🚨',
-            body: 'This is a TEST notification. In a real event, take shelter immediately.',
-            data: { 
-              alertId: testAlert.properties.id,
-              isTornado: true,
-              isTest: true
-            },
-            sound: true,
-            priority: Notifications.AndroidNotificationPriority.MAX,
-            vibrate: [0, 250, 250, 250],
-            color: '#e74c3c',
-          },
-          trigger: null, // Send immediately
-        });
+        setTestingSound(false);
       }
-      
-      // Stop the sound after a few seconds
-      setTimeout(() => {
-        stopAlarmSound();
-      }, 5000);
     } catch (error) {
       console.error('Error testing tornado warning:', error);
+      setTestingSound(false);
     }
-  }, [playAlarmSound, stopAlarmSound, addTemporaryAlert]);
+  };
+
+  // Reset all seen alerts
+  const resetSeenAlerts = async () => {
+    try {
+      await AsyncStorage.removeItem('seenAlerts');
+      // Show confirmation
+      await showNotification(
+        'Alerts Reset',
+        'Your alert history has been cleared. You will receive notifications again for any active alerts.',
+        'alerts-reset',
+        false
+      );
+    } catch (error) {
+      console.error('Error resetting seen alerts:', error);
+    }
+  };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={Platform.OS !== 'web'}
-    >
-      <View style={styles.contentWrapper}>
-        <View style={styles.header}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar style="dark" />
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.appInfo}>
           <Image
-            source={require('../../assets/images/icon.png')}
-            style={styles.headerLogo} />
-          <Text style={styles.headerTitle}>NadoBeep</Text>
-        </View>
+            source={APP_ICON}
+            style={styles.appIcon}
+            resizeMode="contain"
+          />
+          <Text style={styles.appName}>NadoBeep</Text>
+          <Text style={styles.version}>Version {VERSION}</Text>
 
-        <View style={styles.section}>
-          <Info size={40} color="#e74c3c" style={styles.icon} />
-          <Text style={styles.title}>About NadoBeep</Text>
-                    <Text style={styles.description}>
-                    NadoBeep displays real-time severe weather information from the official National Weather Service data. It also goes BEEP BEEP when there's a tornado warning!
-                    Note that NadoBeep is NOT an official warning app and should not be your primary source for weather alerts.
-                    </Text>
-        </View>
-
-        <View style={styles.imageSection}>
-          <Image
-            source={{ uri: 'https://images.unsplash.com/photo-1527482797697-8795b05a13fe?q=80&w=800&auto=format&fit=crop' }}
-            style={styles.featureImage} />
-          <Text style={styles.imageCaption}>Stay safe with real-time severe weather alerts</Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Alert Types</Text>
-
-          <View style={styles.alertTypeItem}>
-            <View style={[styles.alertTypeDot, { backgroundColor: '#7b241c' }]} />
-            <View style={styles.alertTypeContent}>
-              <Text style={styles.alertTypeTitle}>Tornado Warning</Text>
-              <Text style={styles.alertTypeDescription}>
-                A tornado has been sighted or indicated by weather radar. Take shelter immediately.
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.alertTypeItem}>
-            <View style={[styles.alertTypeDot, { backgroundColor: '#1a5276' }]} />
-            <View style={styles.alertTypeContent}>
-              <Text style={styles.alertTypeTitle}>Flash Flood Warning</Text>
-              <Text style={styles.alertTypeDescription}>
-                Flash flooding is in progress, imminent, or highly likely. Seek higher ground.
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.alertTypeItem}>
-            <View style={[styles.alertTypeDot, { backgroundColor: '#6c3483' }]} />
-            <View style={styles.alertTypeContent}>
-              <Text style={styles.alertTypeTitle}>Severe Thunderstorm Warning</Text>
-              <Text style={styles.alertTypeDescription}>
-                A thunderstorm with damaging winds and/or large hail is occurring or imminent.
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.alertTypeItem}>
-            <View style={[styles.alertTypeDot, { backgroundColor: '#2980b9' }]} />
-            <View style={styles.alertTypeContent}>
-              <Text style={styles.alertTypeTitle}>Special Marine Warning</Text>
-              <Text style={styles.alertTypeDescription}>
-                Potentially hazardous marine conditions including winds, thunderstorms, or waterspouts affecting coastal waters.
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Key Features</Text>
-
-          <View style={styles.featureItem}>
-            <Bell size={24} color="#e74c3c" style={styles.featureIcon} />
-            <View style={styles.featureContent}>
-              <Text style={styles.featureTitle}>Push Notifications</Text>
-              <Text style={styles.featureDescription}>
-                Receive immediate push notifications for tornado warnings and other severe weather alerts, even when your device is locked.
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.featureItem}>
-            <Volume2 size={24} color="#e74c3c" style={styles.featureIcon} />
-            <View style={styles.featureContent}>
-              <Text style={styles.featureTitle}>Tornado Alarm</Text>
-              <Text style={styles.featureDescription}>
-                When a Tornado Warning is active anywhere in the United States, this app will sound an alarm to alert you, even if your device is on silent mode.
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.featureItem}>
-            <AlertTriangle size={24} color="#e74c3c" style={styles.featureIcon} />
-            <View style={styles.featureContent}>
-              <Text style={styles.featureTitle}>Real-time Updates</Text>
-              <Text style={styles.featureDescription}>
-                Data refreshes automatically every 15 seconds to ensure you have the most current information during severe weather events.
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Debug Tools</Text>
-          <View style={styles.debugSection}>
-            <Bug size={24} color="#e74c3c" style={styles.debugIcon} />
-            <Text style={styles.debugText}>
-              Test the tornado warning notification and alarm system
+          <View style={styles.tagline}>
+            <Info size={16} color={COLORS.text.secondary} />
+            <Text style={styles.taglineText}>
+              Real-time severe weather alerts
             </Text>
+          </View>
+        </View>
+
+        <View style={[styles.section, styles.warningSection]}>
+          <AlertTriangle size={24} color="#e74c3c" />
+          <Text style={styles.warningTitle}>IMPORTANT SAFETY NOTICE</Text>
+          <Text style={styles.paragraph}>
+            This app is for informational purposes only and should NOT be used
+            as your primary source for weather alerts. Always follow official
+            guidance from local emergency management officials during severe
+            weather events.
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>App Status</Text>
+          <View style={styles.monitoringControl}>
+            <View style={styles.monitoringTextContainer}>
+              <Text style={styles.monitoringTitle}>
+                {isWeb ? 'Web Notifications' : 'Background Notifications'}
+              </Text>
+              <Text style={styles.monitoringDescription}>
+                {isWeb
+                  ? notificationsEnabled
+                    ? "Enabled - You'll receive alerts when this tab is open"
+                    : "Disabled - You won't receive notifications"
+                  : notificationsEnabled
+                  ? 'Enabled - You will be notified of severe weather alerts'
+                  : 'Disabled - You will not be notified of alerts'}
+              </Text>
+              {isWeb && (
+                <Text style={styles.webNoticeText}>
+                  Note: Web notifications only work when this tab is open
+                </Text>
+              )}
+            </View>
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={handleToggleNotifications}
+              trackColor={{ false: '#d3d3d3', true: '#e74c3c88' }}
+              thumbColor={notificationsEnabled ? '#e74c3c' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.monitoringControl}>
+            <View style={styles.monitoringTextContainer}>
+              <Text style={styles.monitoringTitle}>Alarm Sound</Text>
+              <Text style={styles.monitoringDescription}>
+                {isSoundEnabled
+                  ? 'Enabled - Alarm will sound for tornado warnings'
+                  : 'Disabled - No sound will play'}
+              </Text>
+              {isWeb && (
+                <Text style={styles.webNoticeText}>
+                  Note: Web browsers may require interaction before playing
+                  sound
+                </Text>
+              )}
+            </View>
+            <Switch
+              value={isSoundEnabled}
+              onValueChange={toggleSound}
+              trackColor={{ false: '#d3d3d3', true: '#e74c3c88' }}
+              thumbColor={isSoundEnabled ? '#e74c3c' : '#f4f3f4'}
+            />
+          </View>
+
+          {!notificationsEnabled && (
+            <View style={styles.monitoringWarning}>
+              <AlertTriangle size={18} color="#e67e22" />
+              <Text style={styles.monitoringWarningText}>
+                {isWeb
+                  ? "Web notifications are disabled. You won't be notified of new alerts."
+                  : 'Background notifications are disabled. You may miss important weather alerts.'}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>About This App</Text>
+          <Text style={styles.paragraph}>
+            NadoBeep monitors the National Weather Service API for severe
+            weather alerts, focusing specifically on county-based alerts with
+            polygon geometries such as Tornado Warnings, Flood Warnings, Severe
+            Warnings, and other critical alerts.
+          </Text>
+          <Text style={styles.paragraph}>
+            When a severe weather alert is detected, the app will notify you
+            immediately with details about the alert. Tornado warnings trigger a
+            special alarm sound to ensure you're alerted even if you're not
+            looking at your device.
+          </Text>
+          {isWeb && (
+            <Text style={[styles.paragraph, styles.webFeatureNote]}>
+              On web browsers, notifications will only appear when this tab is
+              open and active. For reliable background notifications, consider
+              installing the mobile app.
+            </Text>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>How It Works</Text>
+          <Text style={styles.paragraph}>
+            • Fetches alerts from the NWS API every 30 seconds
+          </Text>
+          <Text style={styles.paragraph}>
+            • Filters for county-based alerts with polygon geometries
+          </Text>
+          <Text style={styles.paragraph}>
+            • Displays notifications for new alerts
+          </Text>
+          <Text style={styles.paragraph}>
+            • Plays alarm sound for tornado warnings
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Supported Alert Types</Text>
+          <View style={styles.alertsList}>
+            <Text style={styles.alertType}>• Tornado Warning</Text>
+            <Text style={styles.alertType}>
+              • Flash Flood Warning & Statement
+            </Text>
+            <Text style={styles.alertType}>• Flood Warning & Statement</Text>
+            <Text style={styles.alertType}>• Severe Thunderstorm Warning</Text>
+            <Text style={styles.alertType}>• Special Marine Warning</Text>
+            <Text style={styles.alertType}>• Severe Weather Statement</Text>
+            <Text style={styles.alertType}>• Snow Squall Warning</Text>
+            <Text style={styles.alertType}>
+              • Dust Storm Warning & Advisory
+            </Text>
+            <Text style={styles.alertType}>• Extreme Wind Warning</Text>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Test Functions</Text>
+          <TouchableOpacity
+            style={[styles.testButton, testingSound && styles.testingButton]}
+            onPress={testTornadoWarning}
+            disabled={testingSound}
+          >
+            {testingSound ? (
+              <>
+                <ActivityIndicator
+                  size="small"
+                  color="#fff"
+                  style={styles.testButtonIcon}
+                />
+                <Text style={styles.testButtonText}>
+                  Testing (5 seconds)...
+                </Text>
+              </>
+            ) : (
+              <>
+                <Bug size={18} color="#fff" style={styles.testButtonIcon} />
+                <Text style={styles.testButtonText}>Test Tornado Warning</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          <Text style={styles.testDescription}>
+            This will play the tornado warning sound for 5 seconds and show a
+            test notification.
+            {isWeb
+              ? ' On web browsers, this may require user interaction first.'
+              : ''}
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Data Source</Text>
+          <Text style={styles.paragraph}>
+            All weather alert data is sourced from the National Weather Service
+            (NWS) API.
+          </Text>
+          <TouchableOpacity
+            style={styles.linkButton}
+            onPress={() => openLink('https://www.weather.gov/')}
+          >
+            <Text style={styles.linkText}>Visit National Weather Service</Text>
+            <ExternalLink size={16} color={COLORS.primary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* {isWeb && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Get the App</Text>
+            <Text style={styles.paragraph}>
+              For the best experience and background notifications, download the
+              native app for your device.
+            </Text>
+            <View style={styles.appStoreButtons}>
+              <TouchableOpacity
+                style={[styles.storeButton, styles.appStoreButton]}
+                onPress={() =>
+                  openLink(
+                    'https://apps.apple.com/us/app/nadobeep/id1234567890'
+                  )
+                }
+              >
+                <Text style={styles.storeButtonText}>App Store</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.storeButton, styles.playStoreButton]}
+                onPress={() =>
+                  openLink(
+                    'https://play.google.com/store/apps/details?id=com.nadobeep.app'
+                  )
+                }
+              >
+                <Text style={styles.storeButtonText}>Play Store</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )} */}
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Made with ♥ for weather safety</Text>
+          <View style={styles.socialLinks}>
             <TouchableOpacity
-              style={styles.debugButton}
-              onPress={testTornadoWarning}
+              style={styles.socialButton}
+              onPress={() =>
+                openLink('https://github.com/rubynouille/NadoBeepExpo')
+              }
             >
-              <Text style={styles.debugButtonText}>Test Tornado Warning</Text>
+              <Github size={20} color={COLORS.text.secondary} />
             </TouchableOpacity>
-            <Text style={styles.debugDisclaimer}>
-              This will trigger a test notification and sound the alarm for 5 seconds
-            </Text>
+            <TouchableOpacity
+              style={styles.socialButton}
+              onPress={() => openLink('https://x.com/RubyNouille')}
+            >
+              <Twitter size={20} color={COLORS.text.secondary} />
+            </TouchableOpacity>
           </View>
         </View>
-
-        <View style={styles.imageSection}>
-          <Image
-            source={{ uri: 'https://images.unsplash.com/photo-1605727216801-e27ce1d0cc28?q=80&w=800&auto=format&fit=crop' }}
-            style={styles.featureImage} />
-          <Text style={styles.imageCaption}>Tornado warnings demand immediate action</Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Alert Severity Levels</Text>
-
-          <View style={styles.severityItem}>
-            <View style={[styles.severityDot, { backgroundColor: '#7b241c' }]} />
-            <View style={styles.severityContent}>
-              <Text style={styles.severityTitle}>Extreme</Text>
-              <Text style={styles.severityDescription}>
-                Extraordinary threat to life or property
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.severityItem}>
-            <View style={[styles.severityDot, { backgroundColor: '#c0392b' }]} />
-            <View style={styles.severityContent}>
-              <Text style={styles.severityTitle}>Severe</Text>
-              <Text style={styles.severityDescription}>
-                Significant threat to life or property
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.severityItem}>
-            <View style={[styles.severityDot, { backgroundColor: '#e67e22' }]} />
-            <View style={styles.severityContent}>
-              <Text style={styles.severityTitle}>Moderate</Text>
-              <Text style={styles.severityDescription}>
-                Possible threat to life or property
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.severityItem}>
-            <View style={[styles.severityDot, { backgroundColor: '#f1c40f' }]} />
-            <View style={styles.severityContent}>
-              <Text style={styles.severityTitle}>Minor</Text>
-              <Text style={styles.severityDescription}>
-                Minimal or no known threat to life or property
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <AlertTriangle size={24} color="#e74c3c" style={styles.warningIcon} />
-          <Text style={styles.warningTitle}>Important Safety Notice</Text>
-          <Text style={styles.warningText}>
-            This app is for informational purposes only. Always follow official guidance from local emergency management officials during severe weather events.
-          </Text>
-          <Text style={styles.warningText}>
-            Do not rely solely on this app for life-threatening weather situations. Have multiple ways to receive warnings and know your safe place.
-          </Text>
-        </View>
-
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Data Source</Text>
-      <Text style={styles.description}>
-        All weather alert data is sourced directly from the official National Weather Service API.
-        The app automatically refreshes data every 15 seconds to ensure you have the most up-to-date information.
-      </Text>
-      <TouchableOpacity
-        style={styles.link}
-        onPress={() => Linking.openURL('https://api.weather.gov/')}
-      >
-        <Text style={styles.linkText}>NWS API Documentation</Text>
-        <ExternalLink size={16} color="#3498db" />
-      </TouchableOpacity>
-    </View>
-
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Additional Resources</Text>
-      <TouchableOpacity
-        style={styles.link}
-        onPress={() => Linking.openURL('https://www.weather.gov/')}
-      >
-        <Text style={styles.linkText}>National Weather Service</Text>
-        <ExternalLink size={16} color="#3498db" />
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.link}
-        onPress={() => Linking.openURL('https://www.spc.noaa.gov/')}
-      >
-        <Text style={styles.linkText}>Storm Prediction Center</Text>
-        <ExternalLink size={16} color="#3498db" />
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.link}
-        onPress={() => Linking.openURL('https://www.fema.gov/')}
-      >
-        <Text style={styles.linkText}>Federal Emergency Management Agency</Text>
-        <ExternalLink size={16} color="#3498db" />
-      </TouchableOpacity>
-    </View>
-
-    <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          NadoBeep • Version 1.0.0
-        </Text>
-        <Text style={styles.footerText}>
-          Created with Expo and React Native
-        </Text>
-        <Text style={styles.footerText}>
-          © 2025 NadoBeep
-        </Text>
-      </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
+
+// Add new styles for the additional elements
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  appInfo: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  appIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    marginBottom: 12,
+  },
+  appName: {
+    fontSize: 28,
+    fontFamily: FONTS.bold,
+    color: COLORS.text.primary,
+    marginBottom: 4,
+  },
+  version: {
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+    color: COLORS.text.secondary,
+    marginBottom: 12,
+  },
+  tagline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  taglineText: {
+    marginLeft: 6,
+    fontSize: 14,
+    fontFamily: FONTS.medium,
+    color: COLORS.text.secondary,
+  },
+  section: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+      },
+    }),
+  },
+  warningSection: {
+    backgroundColor: '#FFEBEE',
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.primary,
+    alignItems: 'center',
+  },
+  warningTitle: {
+    fontSize: 16,
+    fontFamily: FONTS.bold,
+    color: COLORS.primary,
+    marginVertical: 8,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.text.primary,
+    marginBottom: 12,
+  },
+  paragraph: {
+    fontSize: 15,
+    fontFamily: FONTS.regular,
+    color: COLORS.text.primary,
+    marginBottom: 10,
+    lineHeight: 22,
+  },
+  linkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  linkText: {
+    fontSize: 15,
+    fontFamily: FONTS.medium,
+    color: COLORS.primary,
+    marginRight: 6,
+  },
+  footer: {
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+    color: COLORS.text.secondary,
+    marginBottom: 12,
+  },
+  socialLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  socialButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 1,
+      },
+      web: {
+        boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1)',
+      },
+    }),
+  },
+  statusItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  statusLabel: {
+    fontSize: 15,
+    fontFamily: FONTS.medium,
+    color: COLORS.text.primary,
+  },
+  statusValue: {
+    fontSize: 15,
+    fontFamily: FONTS.medium,
+    color: COLORS.text.secondary,
+  },
+  alertsList: {
+    marginTop: 8,
+  },
+  alertType: {
+    fontSize: 15,
+    fontFamily: FONTS.regular,
+    color: COLORS.text.primary,
+    marginBottom: 6,
+  },
+  testButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  testButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: FONTS.medium,
+  },
+  testButtonIcon: {
+    marginRight: 8,
+  },
+  testDescription: {
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  monitoringControl: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  monitoringTextContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
+  monitoringTitle: {
+    fontSize: 16,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.text.primary,
+    marginBottom: 4,
+  },
+  monitoringDescription: {
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+    color: COLORS.text.secondary,
+  },
+  monitoringWarning: {
+    backgroundColor: '#FFF3E0',
+    padding: 12,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  monitoringWarningText: {
+    fontSize: 14,
+    fontFamily: FONTS.medium,
+    color: '#e67e22',
+    marginLeft: 8,
+    flex: 1,
+  },
+  resetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#3498db',
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  resetButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: FONTS.medium,
+    marginLeft: 6,
+  },
+  resetButtonIcon: {
+    marginRight: 4,
+  },
+  resetDescription: {
+    fontSize: 12,
+    fontFamily: FONTS.regular,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginBottom: 8,
+  },
+  forceResetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#e74c3c',  // Red color for more aggressive action
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  testingButton: {
+    backgroundColor: '#7f8c8d',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#7f8c8d',
+    fontFamily: FONTS.medium,
+    marginTop: 16,
+  },
+  webNoticeText: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    color: COLORS.text.secondary,
+    fontFamily: FONTS.regular,
+    marginTop: 4,
+  },
+  
+  webFeatureNote: {
+    backgroundColor: '#FFF8E1',
+    padding: 10,
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: '#FFB74D',
+    fontSize: 13,
+    fontStyle: 'italic',
+  },
+  
+  appStoreButtons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 16,
+  },
+  
+  storeButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 6,
+    marginHorizontal: 8,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  
+  appStoreButton: {
+    backgroundColor: '#007AFF',
+  },
+  
+  playStoreButton: {
+    backgroundColor: '#4CAF50',
+  },
+  
+  storeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: FONTS.semiBold,
+  },
+});

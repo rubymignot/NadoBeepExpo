@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    body {
+      padding: 0;
+      margin: 0;
+    }
+    html, body, #map {
+      height: 100vh;
+      width: 100vw;
+    }
+    .alert-popup .leaflet-popup-content-wrapper {
+      border-radius: 4px;
+      padding: 0;
+      max-width: 260px;
+    }
+    .alert-popup .leaflet-popup-content {
+      margin: 10px;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    // Initialize the map
+    const map = L.map('map').setView([39.8283, -98.5795], 4);
+    
+    // Add the OpenStreetMap tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // Function to handle messages from React Native
+    window.addEventListener('message', function(event) {
+      try {
+        const data = JSON.parse(event.data);
+        
+        switch(data.type) {
+          case 'INITIALIZE_MAP':
+            // Clear existing layers
+            map.eachLayer(layer => {
+              if (!(layer instanceof L.TileLayer)) {
+                map.removeLayer(layer);
+              }
+            });
+            
+            // Add alert polygons
+            if (data.alerts && data.alerts.length > 0) {
+              const bounds = [];
+              
+              data.alerts.forEach(alert => {
+                if (alert.geometry && alert.geometry.coordinates && alert.geometry.coordinates[0]) {
+                  const coords = alert.geometry.coordinates[0].map(coord => [coord[1], coord[0]]);
+                  const polygon = L.polygon(coords, {
+                    color: alert.properties.color,
+                    fillColor: alert.properties.color,
+                    fillOpacity: 0.4,
+                    weight: 2
+                  });
+                  
+                  // Create popup content
+                  const popupContent = `
+                    <div style="font-family: Arial, sans-serif; max-width: 240px;">
+                      <div style="color: ${alert.properties.color}; font-weight: bold; font-size: 14px; margin-bottom: 4px;">
+                        ${alert.properties.event}
+                      </div>
+                      <div style="font-size: 13px; margin-bottom: 4px;">
+                        ${alert.properties.headline || `${alert.properties.event} for ${alert.properties.areaDesc}`}
+                      </div>
+                      <div style="font-size: 12px; color: #666; margin-bottom: 3px;">
+                        Area: ${alert.properties.areaDesc}
+                      </div>
+                      <div style="font-size: 11px; color: #999;">
+                        Issued: ${alert.properties.relativeTime}
+                      </div>
+                    </div>
+                  `;
+                  
+                  polygon.bindPopup(popupContent, { className: 'alert-popup' });
+                  polygon.addTo(map);
+                  
+                  // Collect coordinates for bounds calculation
+                  coords.forEach(coord => bounds.push(coord));
+                }
+              });
+              
+              // Set map view to fit all alerts
+              if (bounds.length > 0) {
+                map.fitBounds(bounds);
+              }
+            }
+            break;
+            
+          case 'SET_VIEW':
+            map.setView([data.lat, data.lng], data.zoom || map.getZoom());
+            break;
+        }
+      } catch (e) {
+        console.error('Error processing message:', e);
+      }
+    });
+    
+    // Notify parent that the map is ready
+    window.parent.postMessage(JSON.stringify({
+      type: 'MAP_READY'
+    }), '*');
+  </script>
+</body>
+</html>

@@ -1,49 +1,42 @@
+import React from 'react';
 import { Tabs } from 'expo-router';
-import { TriangleAlert as AlertTriangle, Info } from 'lucide-react-native';
+import { MapPin, Bell, InfoIcon } from 'lucide-react-native';
+import { COLORS } from '@/constants/theme';
 
-export default function TabLayout() {
+export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#e74c3c',
-        tabBarInactiveTintColor: '#7f8c8d',
-        tabBarStyle: {
-          backgroundColor: '#f8f9fa',
-          borderTopWidth: 1,
-          borderTopColor: '#e0e0e0',
-        },
-        headerStyle: {
-          backgroundColor: '#e74c3c',
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-          fontFamily: 'Inter-Bold',
-        },
-        headerShown: false,
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: '#999',
         tabBarLabelStyle: {
-          fontFamily: 'Inter-Medium',
           fontSize: 12,
         },
-      }}>
+        tabBarStyle: {
+          borderTopWidth: 1,
+          borderTopColor: '#f0f0f0',
+        },
+        headerShown: false,
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Alerts',
-          tabBarIcon: ({ color, size }) => <AlertTriangle size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <Bell size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="about"
         options={{
           title: 'About',
-          tabBarIcon: ({ color, size }) => <Info size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <InfoIcon size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="alert-details"
         options={{
-          href: null,
+          href: null
         }}
       />
     </Tabs>

@@ -12,6 +12,9 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, ExternalLink, AlertTriangle } from 'lucide-react-native';
+import { EVENT_COLORS, SEVERITY_COLORS } from '@/constants/alerts';
+import { useAlertsContext } from '@/context/AlertsContext';
+import { getRelativeTime } from '@/utils/dateUtils';
 
 interface AlertProperties {
   id: string;
@@ -42,11 +45,16 @@ export default function AlertDetailsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
+  const { markAlertSeen } = useAlertsContext();
 
   const fetchAlertDetails = async () => {
     try {
       setError(null);
-      const response = await fetch(`https://api.weather.gov/alerts/${alertId}`);
+      const response = await fetch(`https://api.weather.gov/alerts/${alertId}`, {
+        headers: {
+          'User-Agent': '(NadoBeep, contact@nadobeep.com)',
+        }
+      });
       
       if (!response.ok) {
         throw new Error(`Error: ${response.status} - ${response.statusText}`);
@@ -54,6 +62,11 @@ export default function AlertDetailsScreen() {
       
       const data = await response.json();
       setAlert(data);
+      
+      // Mark this alert as seen
+      if (data && data.properties && data.properties.id) {
+        await markAlertSeen(data.properties.id);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch alert details');
       console.error('Failed to fetch alert details:', err);
@@ -72,39 +85,29 @@ export default function AlertDetailsScreen() {
     fetchAlertDetails();
   };
 
+  // Format date with absolute and relative time
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleString();
+    const absoluteTime = date.toLocaleString();
+    const relativeTime = getRelativeTime(date);
+    return `${absoluteTime} (${relativeTime})`;
   };
 
   const getSeverityColor = (severity: string) => {
-    switch (severity.toLowerCase()) {
-      case 'extreme':
-        return '#7b241c';
-      case 'severe':
-        return '#c0392b';
-      case 'moderate':
-        return '#e67e22';
-      case 'minor':
-        return '#f1c40f';
-      default:
-        return '#7f8c8d';
-    }
+    return SEVERITY_COLORS[severity.toLowerCase() as keyof typeof SEVERITY_COLORS] || 
+      SEVERITY_COLORS.unknown;
   };
 
   const getEventColor = (event: string) => {
-    switch (event) {
-      case 'Tornado Warning':
-        return '#7b241c';
-      case 'Flash Flood Warning':
-        return '#1a5276';
-      case 'Severe Thunderstorm Warning':
-        return '#6c3483';
-      default:
-        return '#2c3e50';
-    }
+    return EVENT_COLORS[event as keyof typeof EVENT_COLORS] || EVENT_COLORS.default;
   };
 
+  // Generate NWS link for the specific alert
+  const getNWSLink = (id: string) => {
+    return `https://alerts.weather.gov/cap/wwacapget.php?x=${id}`;
+  };
+
+  // ... rest of the component remains unchanged
   if (loading && !refreshing) {
     return (
       <View style={styles.centered}>
@@ -223,7 +226,7 @@ export default function AlertDetailsScreen() {
 
         <TouchableOpacity 
           style={styles.nwsLink}
-          onPress={() => Linking.openURL(`https://www.weather.gov/`)}
+          onPress={() => Linking.openURL(getNWSLink(alert.properties.id))}
         >
           <Text style={styles.nwsLinkText}>View on National Weather Service</Text>
           <ExternalLink size={16} color="#3498db" />

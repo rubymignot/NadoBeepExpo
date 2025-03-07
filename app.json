@@ -2,7 +2,7 @@
   "expo": {
     "name": "NadoBeep",
     "slug": "nadobeep",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "nadobeep",
@@ -60,7 +60,9 @@
           "title": "NadoBeep is active",
           "body": "Monitoring for severe weather alerts",
           "icon": "./assets/images/notification-icon.png",
-          "color": "#e74c3c"
+          "color": "#e74c3c",
+          "sticky": true,
+          "priority": "low"
         }
       },
       "intentFilters": [
@@ -71,11 +73,15 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "single",
+      "output": "static",
       "favicon": "./assets/images/favicon.png",
       "notification": {
         "icon": "./assets/images/notification-icon.png"
-      }
+      },
+      "assetBundlePatterns": [
+        "assets/sounds/*"
+      ],
+      "staticPaths": ["./web"]
     },
     "plugins": [
       "expo-router",

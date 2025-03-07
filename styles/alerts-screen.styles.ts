@@ -1,8 +1,22 @@
-import { StyleSheet, Platform, Dimensions, ViewStyle, ImageStyle } from 'react-native';
-import { COLORS, FONTS, SHADOWS, BREAKPOINTS, LAYOUT } from '../constants/theme';
+import {
+  StyleSheet,
+  Platform,
+  Dimensions,
+  ViewStyle,
+  ImageStyle,
+} from 'react-native';
+import {
+  COLORS,
+  FONTS,
+  SHADOWS,
+  BREAKPOINTS,
+  LAYOUT,
+} from '../constants/theme';
 
 const windowWidth = Dimensions.get('window').width;
 const isWeb = Platform.OS === 'web';
+const MOBILE_BREAKPOINT = 600;
+const isMobile = windowWidth < MOBILE_BREAKPOINT;
 
 const getCardWidth = () => {
   if (!isWeb) return '100%';
@@ -25,7 +39,10 @@ export const styles = StyleSheet.create({
   innerContainer: {
     flex: 1,
     width: '100%',
-    maxWidth: typeof LAYOUT.pageWidth === 'string' ? parseInt(LAYOUT.pageWidth, 10) : LAYOUT.pageWidth,
+    maxWidth:
+      typeof LAYOUT.pageWidth === 'string'
+        ? parseInt(LAYOUT.pageWidth, 10)
+        : LAYOUT.pageWidth,
     alignSelf: 'center',
   },
   headerGradient: {
@@ -41,16 +58,16 @@ export const styles = StyleSheet.create({
       web: 0,
     }),
     justifyContent: 'flex-end', // Align content to bottom of gradient
+    alignItems: 'center', // Center horizontally
   },
   header: {
     width: '100%',
-    maxWidth: isWeb ? Math.min(LAYOUT.maxWidth, windowWidth - 48) : '100%',
-    alignSelf: 'center',
+    maxWidth: isWeb ? (windowWidth > 768 ? Math.min(LAYOUT.maxWidth, windowWidth - 48) : windowWidth - 24) : '100%',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Platform.select({
-      web: LAYOUT.contentPadding,
+      web: windowWidth > 768 ? LAYOUT.contentPadding : 12, 
       android: 16,
       ios: LAYOUT.contentPadding,
     }),
@@ -61,11 +78,14 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     height: '100%', // Fill header height
+    flex: 1, // Take available space
+    // More space around logo when title is hidden
+    justifyContent: isMobile ? 'flex-start' : 'flex-start',
   },
   headerLogo: {
     width: 28, // Slightly smaller logo
     height: 28,
-    marginRight: 8,
+    marginRight: isMobile ? 0 : 8, // No margin needed when title is hidden
     borderRadius: 14,
   } as ImageStyle,
   headerTitle: {
@@ -73,10 +93,17 @@ export const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontFamily: FONTS.bold,
     color: COLORS.white,
+    marginLeft: 8, // Consistent spacing from logo
+    flex: 1, // Allow text to compress if needed
   },
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-end', // Ensure buttons stay right-aligned
+    minWidth: Platform.select({
+      web: windowWidth > 768 ? 180 : (isMobile ? 120 : 140),
+      default: isMobile ? 120 : 140,
+    }),
   },
   volumeControl: {
     flexDirection: 'row',
@@ -84,17 +111,21 @@ export const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 20,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: isMobile ? 6 : 4,
     marginLeft: 8,
     width: Platform.select({
-      web: 150,
-      default: 130,
+      web: isMobile ? 150 : 150,  // Wider on mobile web (was 100)
+      default: isMobile ? 140 : 130,  // Wider on mobile native (was 100)
     }),
   },
   volumeSlider: {
     flex: 1,
-    height: 32,
+    height: isMobile ? 40 : 32,
     marginHorizontal: 8,
+    // Make touch target bigger on mobile
+    ...(isMobile && {
+      minHeight: 40,
+    }),
   },
   volumeIconButton: {
     padding: 4,
@@ -105,6 +136,10 @@ export const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 8,
     marginLeft: 8,
+  },
+  disabledButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',  // Darker background when disabled
+    opacity: 0.7,                           // More obvious disabled state
   },
   filterInfo: {
     paddingVertical: 12,
@@ -188,6 +223,19 @@ export const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontFamily: FONTS.bold,
   },
+  notificationsBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ff9800',
+    padding: 10,
+    paddingHorizontal: 16,
+    width: '100%',
+  },
+  notificationsBannerText: {
+    color: '#fff',
+    marginLeft: 8,
+    fontSize: 14,
+  },
   alertCard: {
     backgroundColor: COLORS.surface,
     borderRadius: 12,
@@ -203,4 +251,26 @@ export const styles = StyleSheet.create({
       height: '100%',
     }),
   } as ViewStyle,
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: COLORS.text.secondary,
+    fontFamily: FONTS.medium,
+  },
+  errorText: {
+    marginTop: 10,
+    color: '#e74c3c',
+    fontSize: 16,
+    textAlign: 'center',
+    fontFamily: FONTS.medium,
+  },
+  // Add responsive styles for smaller screens
+  '@media (max-width: 360px)': {
+    headerButtons: {
+      minWidth: 120,
+    },
+    volumeControl: {
+      width: 100,
+    }
+  } as any
 });

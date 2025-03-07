@@ -6,12 +6,21 @@ export enum AlertSeverity {
   Unknown = 'unknown',
 }
 
+// Update the AlertEvent enum to include all county-based products
 export enum AlertEvent {
   TornadoWarning = 'Tornado Warning',
   FlashFloodWarning = 'Flash Flood Warning',
+  FlashFloodStatement = 'Flash Flood Statement',
+  FloodWarning = 'Flood Warning',
+  FloodStatement = 'Flood Statement',
   SevereThunderstormWarning = 'Severe Thunderstorm Warning',
-  TestTornadoWarning = 'Test Tornado Warning',
   SpecialMarineWarning = 'Special Marine Warning',
+  SevereWeatherStatement = 'Severe Weather Statement',
+  SnowSquallWarning = 'Snow Squall Warning',
+  DustStormWarning = 'Dust Storm Warning',
+  DustStormAdvisory = 'Dust Storm Advisory',
+  ExtremeWindWarning = 'Extreme Wind Warning',
+  TestTornadoWarning = 'Test Tornado Warning',
 }
 
 export interface AlertProperties {
@@ -32,7 +41,13 @@ export interface AlertProperties {
   description: string;
 }
 
+export interface AlertGeometry {
+  type: 'Polygon';
+  coordinates: Array<Array<[number, number]>>; // [longitude, latitude] pairs
+}
+
 export interface Alert {
+  geometry: AlertGeometry;
   id: string;
   type: string;
   properties: AlertProperties;
