@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ import { styles } from '../../styles/alerts-screen.styles';
 import { useAlertsContext } from '@/context/AlertsContext';
 import { getRelativeTime } from '@/utils/dateUtils';
 import { requestNotificationPermissions } from '@/services/notificationService';
+import { enableAudioPlayback } from '@/services/soundService';
 
 const APP_ICON = require('../../assets/images/icon.png');
 const MOBILE_BREAKPOINT = 600; // Width threshold for hiding the title
@@ -34,6 +35,8 @@ export default function AlertsScreen() {
   const showTitle = windowWidth > MOBILE_BREAKPOINT;
   const isMobile = windowWidth < MOBILE_BREAKPOINT;
   const isWeb = Platform.OS === 'web';
+  const [audioEnabled, setAudioEnabled] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
 
   // Get context
   const { 
@@ -51,6 +54,18 @@ export default function AlertsScreen() {
     setSoundVolume,
     toggleNotifications
   } = useAlertsContext();
+
+  // Handle enabling audio for web browsers
+  const handleEnableAudio = useCallback(() => {
+    enableAudioPlayback();
+    setAudioEnabled(true);
+    setShowFeedback(true);
+    
+    // Show feedback temporarily
+    setTimeout(() => {
+      setShowFeedback(false);
+    }, 2000);
+  }, []);
 
   // Handle alert press
   const handleAlertPress = useCallback((alert: Alert) => {
@@ -115,6 +130,28 @@ export default function AlertsScreen() {
             />
               <Text style={styles.headerTitle}>NadoBeep</Text>
           </View>
+          
+          {/* Audio enable button for web browsers */}
+          {isWeb && (
+            <View style={styles.audioEnableContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.audioEnableButton,
+                  audioEnabled && styles.audioEnabledButton
+                ]}
+                onPress={handleEnableAudio}
+                disabled={audioEnabled}
+              >
+                <Volume2 size={20} color="#fff" />
+                <Text style={styles.audioEnableButtonText}>
+                  {audioEnabled ? 'Audio Enabled' : 'Enable Alert Sounds'}
+                </Text>
+                {audioEnabled && (
+                  <CheckCircle size={16} color="#fff" style={styles.checkIcon} />
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </LinearGradient>
 

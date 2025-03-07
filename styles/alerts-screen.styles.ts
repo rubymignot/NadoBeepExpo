@@ -264,6 +264,39 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: FONTS.medium,
   },
+  audioEnableContainer: {
+    position: 'relative',
+    marginLeft: 'auto',
+    marginRight: 10,
+  },
+  audioEnabledButton: {
+    backgroundColor: 'rgba(39, 174, 96, 0.7)', // Green background when enabled
+  },
+  checkIcon: {
+    marginLeft: 8,
+  },
+  feedbackText: {
+    color: 'white',
+    marginLeft: 6,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  audioEnableButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginLeft: 'auto',
+    marginRight: 10,
+  },
+  audioEnableButtonText: {
+    color: '#fff',
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: '500',
+  },
   // Add responsive styles for smaller screens
   '@media (max-width: 360px)': {
     headerButtons: {

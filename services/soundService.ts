@@ -7,6 +7,10 @@ let soundObject: Audio.Sound | null = null;
 let isPlaying = false;
 let webAudio: HTMLAudioElement | null = null;
 
+// New variables to handle autoplay restrictions
+let userInteractionOccurred = false;
+let pendingWebPlayRequest: { volume: number; resolve: (audio: HTMLAudioElement | null) => void; reject: (error: Error) => void } | null = null;
+
 // Initialize audio system
 export const initializeAudio = async () => {
   try {
@@ -44,6 +48,47 @@ export const initializeAudio = async () => {
   }
 };
 
+// Enable audio after user interaction
+export const enableAudioPlayback = () => {
+  if (Platform.OS === 'web') {
+    userInteractionOccurred = true;
+    
+    // If there's a pending play request, execute it now
+    if (pendingWebPlayRequest && webAudio) {
+      const { volume, resolve, reject } = pendingWebPlayRequest;
+      
+      webAudio.volume = volume;
+      webAudio.currentTime = 0;
+      
+      const playPromise = webAudio.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            isPlaying = true;
+            console.log('Web audio started playing after user interaction');
+            resolve(webAudio);
+            
+            // Auto-stop after 30 seconds
+            setTimeout(() => {
+              if (isPlaying && webAudio) {
+                webAudio.pause();
+                webAudio.currentTime = 0;
+                isPlaying = false;
+              }
+            }, 30000);
+          })
+          .catch(err => {
+            console.error('Web audio playback failed even after user interaction:', err);
+            reject(err);
+          });
+      }
+      
+      pendingWebPlayRequest = null;
+    }
+  }
+};
+
 // Play the alarm sound
 export const playAlarmSound = async (volume = 0.8) => {
   if (isPlaying) {
@@ -60,6 +105,16 @@ export const playAlarmSound = async (volume = 0.8) => {
       }
       
       if (webAudio) {
+        // If user hasn't interacted with the page yet, queue the request
+        if (!userInteractionOccurred) {
+          console.warn('Audio playback requires user interaction on this browser. Call enableAudioPlayback() after a user interaction (tap/click).');
+          
+          // Return a Promise that will be resolved when the user interacts
+          return new Promise((resolve, reject) => {
+            pendingWebPlayRequest = { volume, resolve, reject };
+          });
+        }
+        
         webAudio.volume = volume;
         webAudio.currentTime = 0;
         
@@ -74,8 +129,12 @@ export const playAlarmSound = async (volume = 0.8) => {
             })
             .catch(err => {
               console.error('Web audio playback failed:', err);
-              // Most browsers will only allow audio to play after user interaction
-              console.log('Audio playback requires user interaction on this browser');
+              console.warn('Audio playback requires user interaction. Use enableAudioPlayback() after a user event.');
+              
+              // Queue the request for when user interaction occurs
+              return new Promise((resolve, reject) => {
+                pendingWebPlayRequest = { volume, resolve, reject };
+              });
             });
         }
 
