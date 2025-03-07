@@ -1,13 +1,14 @@
 import { StyleSheet, View, Text, ScrollView, Image, Linking, TouchableOpacity, Platform, Switch, ActivityIndicator } from 'react-native';
 import React, { useCallback, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ExternalLink, Github, Info, Twitter, AlertTriangle, Bug } from 'lucide-react-native';
+import { ExternalLink, Github, Info, Twitter, AlertTriangle, Bug, Shield } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS, FONTS } from '@/constants/theme';
 import { useAlertsContext } from '@/context/AlertsContext';
 import { showNotification } from '@/services/notificationService';
 import { playAlarmSound, stopAlarmSound } from '@/services/soundService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 
 const APP_ICON = require('../../assets/images/icon.png');
 import { version as appVersion } from '../../package.json';
@@ -16,6 +17,7 @@ const VERSION = appVersion;
 const isWeb = Platform.OS === 'web';
 
 export default function AboutScreen() {
+  const router = useRouter();
   const [testingSound, setTestingSound] = useState(false);
   const { 
     state: { isSoundEnabled, soundVolume, notificationsEnabled },
@@ -287,38 +289,20 @@ export default function AboutScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* {isWeb && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Get the App</Text>
-            <Text style={styles.paragraph}>
-              For the best experience and background notifications, download the
-              native app for your device.
-            </Text>
-            <View style={styles.appStoreButtons}>
-              <TouchableOpacity
-                style={[styles.storeButton, styles.appStoreButton]}
-                onPress={() =>
-                  openLink(
-                    'https://apps.apple.com/us/app/nadobeep/id1234567890'
-                  )
-                }
-              >
-                <Text style={styles.storeButtonText}>App Store</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.storeButton, styles.playStoreButton]}
-                onPress={() =>
-                  openLink(
-                    'https://play.google.com/store/apps/details?id=com.nadobeep.app'
-                  )
-                }
-              >
-                <Text style={styles.storeButtonText}>Play Store</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )} */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Your Privacy</Text>
+          <Text style={styles.paragraph}>
+            We don't collect any personal data. NadoBeep works without tracking your location 
+            or personal information.
+          </Text>
+          <TouchableOpacity
+            style={styles.privacyButton}
+            onPress={() => router.push('/(tabs)/privacy')}
+          >
+            <Shield size={18} color={COLORS.primary} style={styles.privacyButtonIcon} />
+            <Text style={styles.linkText}>View Privacy Policy</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Made with ♥ for weather safety</Text>
@@ -658,5 +642,15 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontFamily: FONTS.semiBold,
+  },
+  
+  privacyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  
+  privacyButtonIcon: {
+    marginRight: 8,
   },
 });

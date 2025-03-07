@@ -39,6 +39,12 @@ export default function TabsLayout() {
           href: null
         }}
       />
+      <Tabs.Screen
+        name="privacy"
+        options={{
+          href: null
+        }}
+      />
     </Tabs>
   );
 }
