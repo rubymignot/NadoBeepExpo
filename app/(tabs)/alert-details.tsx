@@ -13,8 +13,8 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, ExternalLink, AlertTriangle } from 'lucide-react-native';
 import { EVENT_COLORS, SEVERITY_COLORS } from '@/constants/alerts';
-import { useAlertsContext } from '@/context/AlertsContext';
 import { getRelativeTime } from '@/utils/dateUtils';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface AlertProperties {
   id: string;
@@ -45,7 +45,26 @@ export default function AlertDetailsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
-  const { markAlertSeen } = useAlertsContext();
+
+  // Mark an alert as seen (since the useAlerts context doesn't expose this functionality)
+  const markAlertSeen = async (alertId: string) => {
+    try {
+      // Get current seen alerts
+      const seenAlertsString = await AsyncStorage.getItem('seenAlerts');
+      const seenAlerts = seenAlertsString ? seenAlertsString.split('|') : [];
+      
+      // Add this alert if not already there
+      if (!seenAlerts.includes(alertId)) {
+        seenAlerts.push(alertId);
+        await AsyncStorage.setItem('seenAlerts', seenAlerts.join('|'));
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error marking alert as seen:', error);
+      return false;
+    }
+  };
 
   const fetchAlertDetails = async () => {
     try {

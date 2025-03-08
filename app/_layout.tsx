@@ -4,11 +4,29 @@ import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_7
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { AlertsProvider } from '@/context/AlertsContext';
-import { configureNotifications, setupNotificationListeners, getLastNotificationResponse } from '@/services/notificationService';
 import { initializeAudio } from '@/services/soundService';
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { 
+  startAlertServices, 
+  checkAlertsNow, 
+  checkAndRestartServices 
+} from '@/services/foregroundService';
+import { 
+  registerForegroundService,
+  registerBackgroundHandler 
+} from '@/services/notifeeService';
+
+// Register Notifee foreground service as early as possible
+if (Platform.OS === 'android') {
+  registerForegroundService();
+  // Register background handler to fix the warning
+  registerBackgroundHandler();
+}
+
+// Prevent the splash screen from auto-hiding until we're ready
+SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -41,55 +59,88 @@ function RootLayoutNav() {
   const router = useRouter();
   const segments = useSegments();
   const notificationListener = useRef<any>();
+  const serviceInitialized = useRef(false);
+  const appStateSubscription = useRef<any>(null);
 
   useEffect(() => {
-    // Initialize audio system
-    initializeAudio();
+    const initializeApp = async () => {
+      try {
+        // Initialize audio system
+        await initializeAudio();
 
-    // Configure notifications (skips on web)
-    configureNotifications();
-
-    // Set up notification listeners (returns dummy for web)
-    notificationListener.current = setupNotificationListeners();
-
-    // Handle notification taps from background/killed state
-    if (Platform.OS !== 'web') {
-      getLastNotificationResponse().then(response => {
-        if (response) {
-          const alertId = response.notification.request.content.data?.id;
-          if (alertId) {
-            // Navigate to alert details screen
-            AsyncStorage.setItem('lastTappedAlertId', alertId.toString());
+        // Initialize services if not already done
+        if (!serviceInitialized.current && Platform.OS === 'android') {
+          const notificationsEnabled = await AsyncStorage.getItem('notificationsEnabled');
+          
+          if (notificationsEnabled === 'true') {
+            console.log('[Layout] Starting alert services');
             
-            // Delay navigation to ensure app is fully loaded
-            setTimeout(() => router.push({
-              pathname: '/(tabs)/alert-details',
-              params: { alertId: alertId }
-            }), 1000);
+            // Start the services
+            await startAlertServices();
+            serviceInitialized.current = true;
+            
+            // Do an initial check for alerts
+            checkAlertsNow().catch(err => 
+              console.warn('[Layout] Initial alert check failed:', err)
+            );
           }
         }
-      });
+        
+        // Set up AppState listener to monitor app foreground/background transitions
+        appStateSubscription.current = AppState.addEventListener('change', nextAppState => {
+          console.log('[Layout] App state changed:', nextAppState);
+          
+          if (nextAppState === 'active') {
+            // App came to foreground - check services and restart if needed
+            checkAndRestartServices().catch(err => 
+              console.error('[Layout] Error checking services on resume:', err)
+            );
+          }
+        });
+      } catch (error) {
+        console.error('[Layout] Error initializing app services:', error);
+      }
+    };
 
-      // Check for stored alert ID from previous notification tap
-      AsyncStorage.getItem('lastTappedAlertId').then(storedAlertId => {
-        if (storedAlertId) {
-          // Navigate to alert details and clear the stored ID
-          router.push({
-            pathname: '/(tabs)/alert-details',
-            params: { alertId: storedAlertId }
-          });
-          AsyncStorage.removeItem('lastTappedAlertId');
-        }
-      });
-    }
+    initializeApp();
 
     return () => {
       // Clean up notification listener
       if (notificationListener.current) {
         notificationListener.current.remove();
       }
+      
+      // Clean up AppState listener
+      if (appStateSubscription.current) {
+        appStateSubscription.current.remove();
+      }
     };
   }, [router]);
+
+  // Set up periodic health check
+  useEffect(() => {
+    let healthCheckId: NodeJS.Timeout | null = null;
+    
+    if (Platform.OS === 'android') {
+      healthCheckId = setInterval(() => {
+        AsyncStorage.getItem('notificationsEnabled')
+          .then(enabled => {
+            if (enabled === 'true') {
+              checkAndRestartServices().catch(error => 
+                console.error('[Layout] Health check failed:', error)
+              );
+            }
+          })
+          .catch(error => 
+            console.error('[Layout] Error checking notification setting:', error)
+          );
+      }, 60000); // Check every minute
+    }
+    
+    return () => {
+      if (healthCheckId) clearInterval(healthCheckId);
+    };
+  }, []);
 
   return (
     <AlertsProvider>

@@ -1,36 +1,262 @@
-import { StyleSheet, View, Text, ScrollView, Image, Linking, TouchableOpacity, Platform, Switch, ActivityIndicator } from 'react-native';
-import React, { useCallback, useState } from 'react';
+import { View, Text, ScrollView, Image, Linking, TouchableOpacity, Platform, Switch, ActivityIndicator } from 'react-native';
+import React, { useCallback, useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ExternalLink, Github, Info, Twitter, AlertTriangle, Bug, Shield } from 'lucide-react-native';
+import { ExternalLink, Github, Info, Twitter, AlertTriangle, Bug, Shield, Battery, RefreshCw } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
-import { COLORS, FONTS } from '@/constants/theme';
-import { useAlertsContext } from '@/context/AlertsContext';
-import { showNotification } from '@/services/notificationService';
+import * as Device from 'expo-device';
+import { useAlerts } from '@/context/AlertsContext';
 import { playAlarmSound, stopAlarmSound } from '@/services/soundService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { checkAlertsNow, isForegroundServiceRunning, startForegroundService, stopForegroundService } from '@/services/foregroundService';
+import { version as appVersion } from '../../package.json';
+import { showAlertNotification } from '@/services/notifeeService';
+import { 
+  requestNotificationPermission, 
+  getNotificationPermission, 
+  isBrowserNotificationSupported
+} from '@/services/webNotificationService';
+import { styles } from '@/styles/about.styles';
+import { COLORS } from '@/constants/theme';
 
 const APP_ICON = require('../../assets/images/icon.png');
-import { version as appVersion } from '../../package.json';
-// Import app version from package.json
 const VERSION = appVersion;
 const isWeb = Platform.OS === 'web';
 
 export default function AboutScreen() {
   const router = useRouter();
   const [testingSound, setTestingSound] = useState(false);
+  const [serviceStatus, setServiceStatus] = useState<any>(null);
+  const [isLoadingStatus, setIsLoadingStatus] = useState(false);
+  const [isRestartingService, setIsRestartingService] = useState(false);
+  const [versionTapCount, setVersionTapCount] = useState(0); // For hidden debug access
+  const [canModifyBattery, setCanModifyBattery] = useState(false);
+  const [manufacturerInfo, setManufacturerInfo] = useState<{
+    hasSpecialRequirements: boolean;
+    manufacturer: string | null;
+    instructions: string;
+  } | null>(null);
+  const [webNotificationPermission, setWebNotificationPermission] = useState<string | null>(null);
+  const [isCheckingAlerts, setIsCheckingAlerts] = useState(false);
   const { 
     state: { isSoundEnabled, soundVolume, notificationsEnabled },
     toggleSound,
     toggleNotifications
-  } = useAlertsContext();
+  } = useAlerts();
+  
+  // Check device manufacturer and set battery optimization info
+  useEffect(() => {
+    const checkDeviceManufacturer = async () => {
+      if (Platform.OS === 'android') {
+        const manufacturer = await Device.manufacturer;
+        setCanModifyBattery(true);
+        
+        // Set manufacturer-specific instructions
+        if (manufacturer) {
+          const lowerManufacturer = manufacturer.toLowerCase();
+          
+          if (lowerManufacturer.includes('xiaomi') || 
+              lowerManufacturer.includes('redmi') || 
+              lowerManufacturer.includes('poco')) {
+            setManufacturerInfo({
+              hasSpecialRequirements: true,
+              manufacturer: 'Xiaomi/Redmi/Poco',
+              instructions: '1. Find NadoBeep in the apps list\n2. Select "Battery"\n3. Choose "No restrictions"\n4. Also disable "Battery optimization"'
+            });
+          } else if (lowerManufacturer.includes('huawei')) {
+            setManufacturerInfo({
+              hasSpecialRequirements: true,
+              manufacturer: 'Huawei',
+              instructions: '1. Go to Battery settings\n2. Select "App launch"\n3. Find NadoBeep\n4. Enable "Auto-launch" and "Secondary launch"'
+            });
+          } else if (lowerManufacturer.includes('samsung')) {
+            setManufacturerInfo({
+              hasSpecialRequirements: true,
+              manufacturer: 'Samsung',
+              instructions: '1. Select "Battery optimization"\n2. Select "All apps"\n3. Find NadoBeep\n4. Choose "Don\'t optimize"'
+            });
+          } else if (lowerManufacturer.includes('oppo') || 
+                     lowerManufacturer.includes('realme') || 
+                     lowerManufacturer.includes('oneplus')) {
+            setManufacturerInfo({
+              hasSpecialRequirements: true,
+              manufacturer: manufacturer,
+              instructions: '1. Go to Settings > Battery\n2. Find "Background app management"\n3. Find NadoBeep\n4. Choose "Don\'t restrict"'
+            });
+          } else {
+            setManufacturerInfo({
+              hasSpecialRequirements: false,
+              manufacturer: manufacturer,
+              instructions: 'Select "Not optimized" or "Don\'t optimize" for NadoBeep in your battery settings.'
+            });
+          }
+        }
+      }
+    };
+    
+    checkDeviceManufacturer();
+  }, []);
+
+  // Check web notification permission on mount
+  useEffect(() => {
+    if (Platform.OS === 'web' && isBrowserNotificationSupported()) {
+      getNotificationPermission().then(permission => {
+        setWebNotificationPermission(permission);
+      });
+    }
+  }, []);
+
+  // Fetch service status on component mount
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      fetchServiceStatus();
+    }
+  }, []);
+  
+  useEffect(() => {
+    if (Platform.OS === 'web' && isBrowserNotificationSupported()) {
+      getNotificationPermission().then(permission => {
+        setWebNotificationPermission(permission);
+        
+        // If permission is granted but notifications are disabled, show a hint
+        if (permission === 'granted' && !notificationsEnabled) {
+          console.log('Notification permission granted but notifications are disabled');
+        }
+      });
+    }
+  }, [notificationsEnabled]);
   
   const handleToggleNotifications = useCallback(async (value: boolean) => {
     await toggleNotifications();
   }, [toggleNotifications]);
   
+  const handleToggleSound = useCallback(async (value: boolean) => {
+    await toggleSound();
+  }, [toggleSound]);
+  
   const openLink = (url: string) => {
     Linking.openURL(url).catch(err => console.error("Couldn't open link", err));
+  };
+
+  // Request web notification permission
+  const handleRequestWebPermission = async () => {
+    if (Platform.OS === 'web' && isBrowserNotificationSupported()) {
+      const granted = await requestNotificationPermission();
+      const currentPermission = await getNotificationPermission();
+      setWebNotificationPermission(currentPermission);
+      
+      if (granted) {
+        // Enable notifications if permission was granted
+        toggleNotifications();
+      }
+    }
+  };
+
+  // Fetch background service status
+  const fetchServiceStatus = async () => {
+    if (Platform.OS !== 'android') return;
+    
+    try {
+      setIsLoadingStatus(true);
+      
+      // Check if service is running
+      const isRunning = await isForegroundServiceRunning();
+      
+      // Get other diagnostic information
+      const notificationsEnabled = await AsyncStorage.getItem('notificationsEnabled') === 'true';
+      const fetchStatus = await AsyncStorage.getItem('lastFetchStatus') || 'Unknown';
+      const serviceStartTime = await AsyncStorage.getItem('serviceStartTime');
+      const lastUpdateTime = await AsyncStorage.getItem('lastUpdateTime');
+      const backgroundIntervalActive = await AsyncStorage.getItem('backgroundIntervalActive') === 'true';
+      const lastSuccessfulFetch = await AsyncStorage.getItem('lastSuccessfulFetch');
+      const errorCount = await AsyncStorage.getItem('fetchErrorCount') || '0';
+      const notificationCount = await AsyncStorage.getItem('notificationCount') || '0';
+      const lastForegroundServiceRun = await AsyncStorage.getItem('last_foreground_service_run');
+      
+      // Get device info
+      const deviceType = Device.deviceName || 'Unknown device';
+      const platform = Device.osName || 'Android';
+      const osVersion = Device.osVersion || 'Unknown version';
+      
+      setServiceStatus({
+        taskRegistered: isRunning,
+        notificationsEnabled,
+        fetchStatus,
+        serviceStartTime,
+        lastUpdateTime,
+        backgroundIntervalActive,
+        lastSuccessfulFetch,
+        errorCount: parseInt(errorCount, 10),
+        notificationCount: parseInt(notificationCount, 10),
+        lastForegroundServiceRun,
+        deviceType,
+        platform,
+        osVersion
+      });
+    } catch (error) {
+      console.error('Error fetching service status:', error);
+    } finally {
+      setIsLoadingStatus(false);
+    }
+  };
+  
+  // Restart the background service
+  const handleServiceRestart = async () => {
+    if (Platform.OS !== 'android') return;
+    
+    try {
+      setIsRestartingService(true);
+      
+      // Stop the service if it's running
+      await stopForegroundService();
+      
+      // Short delay to ensure clean shutdown
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Start the service again
+      await startForegroundService();
+      
+      // Store the current time as service start time
+      await AsyncStorage.setItem('serviceStartTime', new Date().toISOString());
+      
+      // Refresh status
+      await fetchServiceStatus();
+      
+      // Show success notification
+      await showAlertNotification(
+        'Service Restarted',
+        'The background monitoring service has been restarted.',
+        'service-restart',
+        false
+      );
+    } catch (error) {
+      console.error('Error restarting service:', error);
+    } finally {
+      setIsRestartingService(false);
+    }
+  };
+  
+  // Open battery optimization settings
+  const handleOpenBatterySettings = () => {
+    if (Platform.OS !== 'android') return;
+    
+    try {
+      // This will open battery optimization settings on most Android devices
+      Linking.openSettings();
+      
+      // For newer Android versions, we can try to open battery optimization directly
+      // but this may not work on all devices
+      try {
+        Linking.openURL('android:///settings/battery').catch(() => {
+          // If direct battery URL fails, we've already opened general settings above
+          console.log('Could not open battery settings directly');
+        });
+      } catch (error) {
+        console.log('Error opening battery settings URL:', error);
+      }
+    } catch (error) {
+      console.error('Error opening settings:', error);
+    }
   };
 
   // Test tornado warning notification and sound
@@ -39,7 +265,7 @@ export default function AboutScreen() {
       setTestingSound(true);
       
       // Show test notification
-      await showNotification(
+      await showAlertNotification(
         'Test Tornado Warning',
         'This is a TEST tornado warning notification.',
         'test-tornado-warning',
@@ -69,7 +295,7 @@ export default function AboutScreen() {
     try {
       await AsyncStorage.removeItem('seenAlerts');
       // Show confirmation
-      await showNotification(
+      await showAlertNotification(
         'Alerts Reset',
         'Your alert history has been cleared. You will receive notifications again for any active alerts.',
         'alerts-reset',
@@ -77,6 +303,49 @@ export default function AboutScreen() {
       );
     } catch (error) {
       console.error('Error resetting seen alerts:', error);
+    }
+  };
+
+  // Handle checking alerts now
+  const handleCheckAlertsNow = async () => {
+    if (Platform.OS !== 'android') return;
+    
+    try {
+      setIsCheckingAlerts(true);
+      
+      // Check alerts
+      const result = await checkAlertsNow();
+      
+      // Show toast or notification about the result
+      if (result) {
+        await showAlertNotification(
+          'Alert Check Complete',
+          'Successfully checked for alerts.',
+          'check-alerts-now',
+          false
+        );
+      } else {
+        await showAlertNotification(
+          'Alert Check Complete',
+          'No new alerts found.',
+          'check-alerts-now',
+          false
+        );
+      }
+      
+      // Refresh status after checking
+      await fetchServiceStatus();
+      
+    } catch (error) {
+      console.error('Error checking alerts:', error);
+      await showAlertNotification(
+        'Alert Check Failed',
+        'There was a problem checking for alerts.',
+        'check-alerts-error',
+        false
+      );
+    } finally {
+      setIsCheckingAlerts(false);
     }
   };
 
@@ -95,8 +364,8 @@ export default function AboutScreen() {
             style={styles.appIcon}
             resizeMode="contain"
           />
-          <Text style={styles.appName}>NadoBeep</Text>
-          <Text style={styles.version}>Version {VERSION}</Text>
+            <Text style={styles.appName}>NadoBeep</Text>
+            <Text style={styles.version}>Version {VERSION}</Text>
 
           <View style={styles.tagline}>
             <Info size={16} color={COLORS.text.secondary} />
@@ -147,9 +416,12 @@ export default function AboutScreen() {
             />
           </View>
 
+          {/* Add sound toggle control */}
           <View style={styles.monitoringControl}>
             <View style={styles.monitoringTextContainer}>
-              <Text style={styles.monitoringTitle}>Alarm Sound</Text>
+              <Text style={styles.monitoringTitle}>
+                Alarm Sound
+              </Text>
               <Text style={styles.monitoringDescription}>
                 {isSoundEnabled
                   ? 'Enabled - Alarm will sound for tornado warnings'
@@ -157,18 +429,29 @@ export default function AboutScreen() {
               </Text>
               {isWeb && (
                 <Text style={styles.webNoticeText}>
-                  Note: Web browsers may require interaction before playing
-                  sound
+                  Note: Web browsers may require interaction before playing sound
                 </Text>
               )}
             </View>
             <Switch
               value={isSoundEnabled}
-              onValueChange={toggleSound}
+              onValueChange={handleToggleSound}
               trackColor={{ false: '#d3d3d3', true: '#e74c3c88' }}
               thumbColor={isSoundEnabled ? '#e74c3c' : '#f4f3f4'}
             />
           </View>
+
+          {/* Add web permission button if needed */}
+          {isWeb && isBrowserNotificationSupported() && webNotificationPermission !== 'granted' && (
+            <TouchableOpacity
+              style={styles.permissionButton}
+              onPress={handleRequestWebPermission}
+            >
+              <Text style={styles.permissionButtonText}>
+                Request Notification Permission
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {!notificationsEnabled && (
             <View style={styles.monitoringWarning}>
@@ -181,6 +464,206 @@ export default function AboutScreen() {
             </View>
           )}
         </View>
+
+        {Platform.OS === 'android' && canModifyBattery && (
+          <View style={[styles.section, styles.batterySection]}>
+            <View style={styles.sectionTitleContainer}>
+              <Battery size={20} color="#e67e22" />
+              <Text style={[styles.sectionTitle, {marginLeft: 8, marginBottom: 0}]}>
+                Battery Optimization
+              </Text>
+            </View>
+            
+            <Text style={styles.paragraph}>
+              For reliable background notifications on Android, this app needs to be exempt from battery optimization.
+            </Text>
+            
+            {manufacturerInfo?.hasSpecialRequirements && (
+              <View style={styles.manufacturerWarning}>
+                <AlertTriangle size={18} color="#e67e22" />
+                <Text style={styles.manufacturerWarningText}>
+                  Your device ({manufacturerInfo.manufacturer}) requires special battery settings.
+                </Text>
+              </View>
+            )}
+            
+            <TouchableOpacity 
+              style={styles.batteryButton} 
+              onPress={handleOpenBatterySettings}
+            >
+              <Text style={styles.batteryButtonText}>Open Battery Settings</Text>
+            </TouchableOpacity>
+            
+            {manufacturerInfo && (
+              <Text style={styles.batteryInstructions}>
+                {manufacturerInfo.instructions}
+              </Text>
+            )}
+          </View>
+        )}
+
+        {Platform.OS === 'android' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Background Service Diagnostics</Text>
+            
+            {isLoadingStatus ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Loading status...</Text>
+              </View>
+            ) : serviceStatus ? (
+              <View style={styles.statusDetails}>
+                <View style={styles.statusCard}>
+                  <Text style={styles.statusCardTitle}>Service Status</Text>
+                  <View style={styles.statusRow}>
+                    <Text style={styles.statusLabel}>Notifications: </Text>
+                    <Text style={[
+                      styles.statusValue, 
+                      {color: serviceStatus.notificationsEnabled ? '#2ecc71' : '#e74c3c'}
+                    ]}>
+                      {serviceStatus.notificationsEnabled ? 'Enabled' : 'Disabled'}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.statusRow}>
+                    <Text style={styles.statusLabel}>Service Active: </Text>
+                    <Text style={[
+                      styles.statusValue, 
+                      {color: serviceStatus.taskRegistered ? '#2ecc71' : '#e74c3c'}
+                    ]}>
+                      {serviceStatus.taskRegistered ? 'Yes' : 'No'}
+                    </Text>
+                  </View>
+                </View>
+                
+                <View style={styles.statusCard}>
+                  <Text style={styles.statusCardTitle}>API Activity</Text>
+                  <View style={styles.statusRow}>
+                    <Text style={styles.statusLabel}>Last Check Status: </Text>
+                    <Text style={styles.statusValue}>{serviceStatus.fetchStatus || 'Unknown'}</Text>
+                  </View>
+                  
+                  <View style={styles.statusRow}>
+                    <Text style={styles.statusLabel}>API Errors: </Text>
+                    <Text style={[
+                      styles.statusValue,
+                      {color: serviceStatus.errorCount > 0 ? '#e74c3c' : '#2ecc71'}
+                    ]}>
+                      {serviceStatus.errorCount || 0}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.statusRow}>
+                    <Text style={styles.statusLabel}>Notifications Sent: </Text>
+                    <Text style={styles.statusValue}>{serviceStatus.notificationCount || 0}</Text>
+                  </View>
+                </View>
+                
+                <View style={styles.statusCard}>
+                  <Text style={styles.statusCardTitle}>Timestamps</Text>
+                  {serviceStatus.serviceStartTime && (
+                    <View style={styles.statusRow}>
+                      <Text style={styles.statusLabel}>Service Started: </Text>
+                      <Text style={styles.statusValue}>
+                        {new Date(serviceStatus.serviceStartTime).toLocaleString()}
+                      </Text>
+                    </View>
+                  )}
+                  
+                  {serviceStatus.lastUpdateTime && (
+                    <View style={styles.statusRow}>
+                      <Text style={styles.statusLabel}>Last Check: </Text>
+                      <Text style={styles.statusValue}>
+                        {new Date(serviceStatus.lastUpdateTime).toLocaleString()}
+                      </Text>
+                    </View>
+                  )}
+                  
+                  {serviceStatus.lastSuccessfulFetch && (
+                    <View style={styles.statusRow}>
+                      <Text style={styles.statusLabel}>Last Successful: </Text>
+                      <Text style={styles.statusValue}>
+                        {new Date(serviceStatus.lastSuccessfulFetch).toLocaleString()}
+                      </Text>
+                    </View>
+                  )}
+                  
+                  {serviceStatus.lastForegroundServiceRun && (
+                    <View style={styles.statusRow}>
+                      <Text style={styles.statusLabel}>Service Run: </Text>
+                      <Text style={styles.statusValue}>
+                        {new Date(parseInt(serviceStatus.lastForegroundServiceRun)).toLocaleString()}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                
+                <View style={styles.statusRow}>
+                  <Text style={styles.statusLabel}>Device: </Text>
+                  <Text style={styles.statusValue}>
+                    {serviceStatus.deviceType} ({serviceStatus.platform} {serviceStatus.osVersion})
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <Text style={styles.paragraph}>Status information not available.</Text>
+            )}
+            
+            <View style={styles.serviceControls}>
+              <TouchableOpacity 
+                style={styles.serviceButton} 
+                onPress={fetchServiceStatus}
+                disabled={isLoadingStatus}
+              >
+                <RefreshCw size={16} color="#fff" style={styles.buttonIcon} />
+                <Text style={styles.serviceButtonText}>Refresh Status</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.serviceButton, styles.checkButton]} 
+                onPress={handleCheckAlertsNow}
+                disabled={isCheckingAlerts || isRestartingService}
+              >
+                {isCheckingAlerts ? (
+                  <>
+                    <ActivityIndicator size="small" color="#fff" style={styles.buttonIcon} />
+                    <Text style={styles.serviceButtonText}>Checking...</Text>
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle size={16} color="#fff" style={styles.buttonIcon} />
+                    <Text style={styles.serviceButtonText}>Check Now</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.serviceControls}>
+              <TouchableOpacity 
+                style={[styles.serviceButton, styles.restartButton, { flex: 1 }]} 
+                onPress={handleServiceRestart}
+                disabled={isRestartingService || isCheckingAlerts}
+              >
+                {isRestartingService ? (
+                  <>
+                    <ActivityIndicator size="small" color="#fff" style={styles.buttonIcon} />
+                    <Text style={styles.serviceButtonText}>Restarting...</Text>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={16} color="#fff" style={styles.buttonIcon} />
+                    <Text style={styles.serviceButtonText}>Restart Service</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.serviceNote}>
+              If you're not receiving notifications when the app is in the background, 
+              try restarting the background service.
+            </Text>
+          </View>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>About This App</Text>
@@ -327,330 +810,3 @@ export default function AboutScreen() {
     </SafeAreaView>
   );
 }
-
-// Add new styles for the additional elements
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  appInfo: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  appIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    marginBottom: 12,
-  },
-  appName: {
-    fontSize: 28,
-    fontFamily: FONTS.bold,
-    color: COLORS.text.primary,
-    marginBottom: 4,
-  },
-  version: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: COLORS.text.secondary,
-    marginBottom: 12,
-  },
-  tagline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  taglineText: {
-    marginLeft: 6,
-    fontSize: 14,
-    fontFamily: FONTS.medium,
-    color: COLORS.text.secondary,
-  },
-  section: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-      web: {
-        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
-      },
-    }),
-  },
-  warningSection: {
-    backgroundColor: '#FFEBEE',
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.primary,
-    alignItems: 'center',
-  },
-  warningTitle: {
-    fontSize: 16,
-    fontFamily: FONTS.bold,
-    color: COLORS.primary,
-    marginVertical: 8,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.text.primary,
-    marginBottom: 12,
-  },
-  paragraph: {
-    fontSize: 15,
-    fontFamily: FONTS.regular,
-    color: COLORS.text.primary,
-    marginBottom: 10,
-    lineHeight: 22,
-  },
-  linkButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  linkText: {
-    fontSize: 15,
-    fontFamily: FONTS.medium,
-    color: COLORS.primary,
-    marginRight: 6,
-  },
-  footer: {
-    marginTop: 24,
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: COLORS.text.secondary,
-    marginBottom: 12,
-  },
-  socialLinks: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  socialButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 8,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 1,
-      },
-      web: {
-        boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1)',
-      },
-    }),
-  },
-  statusItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  statusLabel: {
-    fontSize: 15,
-    fontFamily: FONTS.medium,
-    color: COLORS.text.primary,
-  },
-  statusValue: {
-    fontSize: 15,
-    fontFamily: FONTS.medium,
-    color: COLORS.text.secondary,
-  },
-  alertsList: {
-    marginTop: 8,
-  },
-  alertType: {
-    fontSize: 15,
-    fontFamily: FONTS.regular,
-    color: COLORS.text.primary,
-    marginBottom: 6,
-  },
-  testButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  testButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontFamily: FONTS.medium,
-  },
-  testButtonIcon: {
-    marginRight: 8,
-  },
-  testDescription: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: COLORS.text.secondary,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  monitoringControl: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  monitoringTextContainer: {
-    flex: 1,
-    marginRight: 12,
-  },
-  monitoringTitle: {
-    fontSize: 16,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.text.primary,
-    marginBottom: 4,
-  },
-  monitoringDescription: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: COLORS.text.secondary,
-  },
-  monitoringWarning: {
-    backgroundColor: '#FFF3E0',
-    padding: 12,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  monitoringWarningText: {
-    fontSize: 14,
-    fontFamily: FONTS.medium,
-    color: '#e67e22',
-    marginLeft: 8,
-    flex: 1,
-  },
-  resetButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#3498db',
-    padding: 10,
-    borderRadius: 8,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  resetButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontFamily: FONTS.medium,
-    marginLeft: 6,
-  },
-  resetButtonIcon: {
-    marginRight: 4,
-  },
-  resetDescription: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: COLORS.text.secondary,
-    textAlign: 'center',
-    fontStyle: 'italic',
-    marginBottom: 8,
-  },
-  forceResetButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#e74c3c',  // Red color for more aggressive action
-    padding: 10,
-    borderRadius: 8,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  testingButton: {
-    backgroundColor: '#7f8c8d',
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#7f8c8d',
-    fontFamily: FONTS.medium,
-    marginTop: 16,
-  },
-  webNoticeText: {
-    fontSize: 12,
-    fontStyle: 'italic',
-    color: COLORS.text.secondary,
-    fontFamily: FONTS.regular,
-    marginTop: 4,
-  },
-  
-  webFeatureNote: {
-    backgroundColor: '#FFF8E1',
-    padding: 10,
-    borderRadius: 6,
-    borderLeftWidth: 3,
-    borderLeftColor: '#FFB74D',
-    fontSize: 13,
-    fontStyle: 'italic',
-  },
-  
-  appStoreButtons: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 16,
-  },
-  
-  storeButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 6,
-    marginHorizontal: 8,
-    minWidth: 120,
-    alignItems: 'center',
-  },
-  
-  appStoreButton: {
-    backgroundColor: '#007AFF',
-  },
-  
-  playStoreButton: {
-    backgroundColor: '#4CAF50',
-  },
-  
-  storeButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontFamily: FONTS.semiBold,
-  },
-  
-  privacyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  
-  privacyButtonIcon: {
-    marginRight: 8,
-  },
-});

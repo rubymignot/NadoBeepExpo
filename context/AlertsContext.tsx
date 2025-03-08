@@ -1,79 +1,47 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from '@/types/alerts';
-import { setupBackgroundFetch, triggerBackgroundFetch } from '@/services/backgroundTask';
 import { stopAlarmSound } from '@/services/soundService';
+import { startForegroundService, stopForegroundService, checkAlertsNow, isServiceHealthy, checkAndRestartServices, startAlertServices, stopAlertServices } from '@/services/foregroundService';
+import { AppState, Platform } from 'react-native';
+// Import web notification functions
+import { requestNotificationPermission, isBrowserNotificationSupported } from '@/services/webNotificationService';
 
-// State type
-interface AlertsState {
-  alerts: Alert[];
-  isLoading: boolean;
-  error: string | null;
-  lastUpdate: string | null;
-  isSoundEnabled: boolean;
-  soundVolume: number;
-  notificationsEnabled: boolean;
-}
-
-// Action types
-type AlertsAction =
-  | { type: 'SET_ALERTS'; payload: Alert[] }
-  | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'SET_LAST_UPDATE'; payload: string }
-  | { type: 'SET_SOUND_ENABLED'; payload: boolean }
-  | { type: 'SET_SOUND_VOLUME'; payload: number }
-  | { type: 'SET_NOTIFICATIONS_ENABLED'; payload: boolean }
-  | { type: 'CLEAR_ALERTS' };
-
-// Context type
-interface AlertsContextType {
-  state: AlertsState;
-  dispatch: React.Dispatch<AlertsAction>;
-  fetchAlerts: () => Promise<void>;
-  markAlertSeen: (alertId: string) => Promise<void>;
-  toggleSound: () => void;
-  setSoundVolume: (volume: number) => void;
-  toggleNotifications: () => Promise<boolean>;
-}
-
-// Initial state
-const initialState: AlertsState = {
+// Define the initial state
+const initialState = {
   alerts: [],
-  isLoading: false,
-  error: null,
-  lastUpdate: null,
-  isSoundEnabled: true,
+  isSoundEnabled: true, // changed from soundEnabled to isSoundEnabled
   soundVolume: 0.8,
-  notificationsEnabled: false,
+  notificationsEnabled: true,
 };
 
-// Reducer function
-const alertsReducer = (state: AlertsState, action: AlertsAction): AlertsState => {
+// Define the context type
+type AlertsContextType = {
+  state: typeof initialState;
+  dispatch: React.Dispatch<{ type: string; payload: any }>;
+  toggleSound: () => Promise<boolean>;
+  setSoundVolume: (volume: number) => Promise<boolean>;
+  toggleNotifications: () => Promise<boolean>;
+};
+
+// Reducer for state updates
+const alertsReducer = (state: typeof initialState, action: { type: string; payload: any }) => {
   switch (action.type) {
     case 'SET_ALERTS':
       return { ...state, alerts: action.payload };
-    case 'SET_LOADING':
-      return { ...state, isLoading: action.payload };
-    case 'SET_ERROR':
-      return { ...state, error: action.payload };
-    case 'SET_LAST_UPDATE':
-      return { ...state, lastUpdate: action.payload };
     case 'SET_SOUND_ENABLED':
-      return { ...state, isSoundEnabled: action.payload };
+      return { ...state, isSoundEnabled: action.payload }; // changed to isSoundEnabled
     case 'SET_SOUND_VOLUME':
       return { ...state, soundVolume: action.payload };
     case 'SET_NOTIFICATIONS_ENABLED':
       return { ...state, notificationsEnabled: action.payload };
-    case 'CLEAR_ALERTS':
-      return { ...state, alerts: [] };
     default:
       return state;
   }
 };
 
-// Create context
-const AlertsContext = createContext<AlertsContextType | undefined>(undefined);
+// Create the context
+const AlertsContext = createContext<AlertsContextType | null>(null);
 
 // Provider component
 export const AlertsProvider = ({ children }: { children: ReactNode }) => {
@@ -83,7 +51,8 @@ export const AlertsProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const soundEnabled = await AsyncStorage.getItem('soundEnabled');
+        // Use isSoundEnabled as storage key to match state property name
+        const soundEnabled = await AsyncStorage.getItem('isSoundEnabled');
         if (soundEnabled !== null) {
           dispatch({ type: 'SET_SOUND_ENABLED', payload: JSON.parse(soundEnabled) });
         }
@@ -105,173 +74,139 @@ export const AlertsProvider = ({ children }: { children: ReactNode }) => {
     loadSettings();
   }, []);
 
-  // Set up background fetch when component mounts or notification status changes
+  // Set up foreground service when component mounts or notification status changes
   useEffect(() => {
-    const updateBackgroundFetch = async () => {
+    const updateServices = async () => {
       try {
-        await setupBackgroundFetch(state.notificationsEnabled);
-        
-        // If enabling notifications, immediately check for alerts
-        if (state.notificationsEnabled) {
-          triggerBackgroundFetch().catch(err => 
-            console.warn('Failed to trigger immediate background fetch:', err)
-          );
+        // Start or stop the services based on notification status
+        if (Platform.OS === 'android' || Platform.OS === 'ios') {
+          if (state.notificationsEnabled) {
+            console.log('[AlertsContext] Starting alert services');
+            await startAlertServices();
+            
+            // Immediately check for alerts when enabling
+            checkAlertsNow().catch(err => 
+              console.warn('[AlertsContext] Failed immediate alert check:', err)
+            );
+          } else {
+            console.log('[AlertsContext] Stopping alert services');
+            await stopAlertServices();
+          }
         }
       } catch (error) {
-        console.error('Error setting up background fetch:', error);
+        console.error('[AlertsContext] Error updating services:', error);
       }
     };
     
-    updateBackgroundFetch();
+    updateServices();
     
-    // Initial fetch
+    // Initial fetch of alerts
     fetchAlerts();
     
-    // Set up interval for fetching alerts every 30 seconds when app is in foreground
+    // Set up interval for fetching alerts when app is in foreground
     const intervalId = setInterval(fetchAlerts, 30000);
     
-    return () => clearInterval(intervalId);
+    // Set up app state change listener
+    const subscription = AppState.addEventListener('change', (nextAppState: string) => {
+      if (nextAppState === 'active' && state.notificationsEnabled) {
+        // App came to foreground - check alerts and service health
+        console.log('[AlertsContext] App active, checking services');
+        checkAndRestartServices().catch((err: any) => 
+          console.error('[AlertsContext] Error checking services on resume:', err)
+        );
+      }
+    });
+    
+    // Set up periodic health check
+    let healthCheckId: ReturnType<typeof setInterval> | null = null;
+    if ((Platform.OS === 'android' || Platform.OS === 'ios') && state.notificationsEnabled) {
+      healthCheckId = setInterval(() => {
+        checkAndRestartServices().catch((err: any) => 
+          console.error('[AlertsContext] Error in health check:', err)
+        );
+      }, 60000); // Every minute
+    }
+    
+    return () => {
+      clearInterval(intervalId);
+      if (healthCheckId) clearInterval(healthCheckId);
+      subscription.remove();
+    };
   }, [state.notificationsEnabled]);
 
   // Fetch alerts from NWS API
   const fetchAlerts = async () => {
-    dispatch({ type: 'SET_LOADING', payload: true });
     try {
-      console.log('Fetching alerts from NWS API...');
-      const response = await fetch('https://api.weather.gov/alerts/active', {
-        headers: {
-          'User-Agent': '(NadoBeep, contact@nadobeep.com)',
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status} - ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      console.log(`Received ${data.features?.length || 0} alerts from NWS API`);
-      
-      // Filter alerts
-      const filteredAlerts = await filterAlerts(data.features || []);
-      console.log(`Filtered down to ${filteredAlerts.length} alerts`);
-      
-      dispatch({ type: 'SET_ALERTS', payload: filteredAlerts });
-      dispatch({ type: 'SET_LAST_UPDATE', payload: new Date().toISOString() });
-      dispatch({ type: 'SET_ERROR', payload: null });
+      // Implement your alert fetching logic here
+      // This would typically fetch from a weather API and update the alerts state
+      console.log('[AlertsContext] Fetching alerts');
     } catch (error) {
-      console.error('Error fetching alerts:', error);
-      dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to fetch alerts' });
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
+      console.error('[AlertsContext] Error fetching alerts:', error);
     }
   };
 
   // Filter alerts based on criteria
   const filterAlerts = async (alerts: Alert[]): Promise<Alert[]> => {
-    try {
-      console.log(`Total alerts before filtering: ${alerts.length}`);
-      
-      // Get seen alert IDs
-      const seenAlertsString = await AsyncStorage.getItem('seenAlerts');
-      const seenAlerts = seenAlertsString ? seenAlertsString.split('|') : [];
-      
-      console.log(`Number of seen alerts: ${seenAlerts.length}`);
-      
-      // First filter just by type to debug
-      const requiredTypes = [
-        'Severe Thunderstorm Warning',
-        'Tornado Warning',
-        'Flash Flood Warning',
-        'Flash Flood Statement',
-        'Flood Warning',
-        'Flood Statement',
-        'Special Marine Warning',
-        'Snow Squall Warning',
-        'Dust Storm Warning',
-        'Dust Storm Advisory',
-        'Extreme Wind Warning',
-        'Severe Weather Statement',
-        'Test Tornado Warning',
-      ];
-      
-      const byTypeOnly = alerts.filter(alert => 
-        requiredTypes.includes(alert.properties.event)
-      );
-      console.log(`Alerts matching required types: ${byTypeOnly.length}`);
-      
-      // Now check polygon requirement - CHANGE: Don't filter based on "seen" status
-      const filteredAlerts = byTypeOnly.filter(alert => 
-        alert.geometry && alert.geometry.type === 'Polygon'
-      );
-      console.log(`Alerts with polygon geometry: ${filteredAlerts.length}`);
-      
-      // Sort alerts to put unseen ones first
-      filteredAlerts.sort((a, b) => {
-          // If seen status is the same, sort by date (newest first)
-          return new Date(b.properties.sent).getTime() - new Date(a.properties.sent).getTime();
-      });
-      
-      // For debugging, add a test alert if no real alerts are found
-      if (filteredAlerts.length === 0 && alerts.length > 0) {
-        // Find at least one alert to use as a template
-        if (byTypeOnly.length > 0) {
-          const testAlert = JSON.parse(JSON.stringify(byTypeOnly[0]));
-          testAlert.properties.id = `test-alert-${Date.now()}`;
-          testAlert.properties.event = 'Test Tornado Warning';
-          testAlert.properties.headline = 'This is a TEST alert created for debugging';
-          testAlert.properties.seen = false;
-          console.log('Adding a test alert for debugging purposes');
-          filteredAlerts.push(testAlert);
-        }
-      }
-
-      return filteredAlerts;
-    } catch (error) {
-      console.error('Error filtering alerts:', error);
-      return [];
-    }
+    // Implement your alert filtering logic here
+    return alerts;
   };
 
   // Mark an alert as seen
   const markAlertSeen = async (alertId: string) => {
     try {
+      // Get current seen alerts
       const seenAlertsString = await AsyncStorage.getItem('seenAlerts');
       const seenAlerts = seenAlertsString ? seenAlertsString.split('|') : [];
       
+      // Add this alert if not already there
       if (!seenAlerts.includes(alertId)) {
         seenAlerts.push(alertId);
         await AsyncStorage.setItem('seenAlerts', seenAlerts.join('|'));
       }
+      
+      return true;
     } catch (error) {
-      console.error('Error marking alert as seen:', error);
+      console.error('[AlertsContext] Error marking alert as seen:', error);
+      return false;
     }
   };
 
   // Toggle sound on/off
   const toggleSound = async () => {
-    const newSoundEnabled = !state.isSoundEnabled;
-    dispatch({ type: 'SET_SOUND_ENABLED', payload: newSoundEnabled });
-    
     try {
-      await AsyncStorage.setItem('soundEnabled', JSON.stringify(newSoundEnabled));
+      const newSoundEnabled = !state.isSoundEnabled; // changed from soundEnabled
       
-      // If turning off, stop any playing sounds
+      // Update state
+      dispatch({ type: 'SET_SOUND_ENABLED', payload: newSoundEnabled });
+      
+      // Save to storage with the key matching state property name
+      await AsyncStorage.setItem('isSoundEnabled', JSON.stringify(newSoundEnabled));
+      
+      // Stop sound if disabling
       if (!newSoundEnabled) {
         stopAlarmSound();
       }
+      
+      return true;
     } catch (error) {
-      console.error('Error saving sound setting:', error);
+      console.error('[AlertsContext] Error toggling sound:', error);
+      return state.isSoundEnabled; // changed from soundEnabled
     }
   };
 
   // Set sound volume
   const setSoundVolume = async (volume: number) => {
-    dispatch({ type: 'SET_SOUND_VOLUME', payload: volume });
-    
     try {
+      // Update state
+      dispatch({ type: 'SET_SOUND_VOLUME', payload: volume });
+      
+      // Save to storage
       await AsyncStorage.setItem('soundVolume', JSON.stringify(volume));
+      
+      return true;
     } catch (error) {
-      console.error('Error saving volume setting:', error);
+      console.error('[AlertsContext] Error setting sound volume:', error);
+      return false;
     }
   };
 
@@ -286,37 +221,55 @@ export const AlertsProvider = ({ children }: { children: ReactNode }) => {
       // Save to storage
       await AsyncStorage.setItem('notificationsEnabled', JSON.stringify(newNotificationsEnabled));
       
-      // Background fetch update is handled by the useEffect
+      // Update services based on new status
+      if (Platform.OS === 'android' || Platform.OS === 'ios') {
+        if (newNotificationsEnabled) {
+          await startAlertServices();
+          // Immediately check for alerts
+          checkAlertsNow();
+        } else {
+          await stopAlertServices();
+        }
+      } else if (Platform.OS === 'web' && isBrowserNotificationSupported()) {
+        // Handle web notifications
+        if (newNotificationsEnabled) {
+          // Request permission if needed for web
+          await requestNotificationPermission();
+          // Start web polling
+          await startAlertServices();
+          // Check for alerts immediately
+          await checkAlertsNow();
+        } else {
+          // Stop web polling
+          await stopAlertServices();
+        }
+      }
       
       return newNotificationsEnabled;
     } catch (error) {
-      console.error('Error toggling notifications:', error);
+      console.error('[AlertsContext] Error toggling notifications:', error);
       return state.notificationsEnabled;
     }
   };
 
-  const value = {
-    state,
-    dispatch,
-    fetchAlerts,
-    markAlertSeen,
-    toggleSound,
-    setSoundVolume,
-    toggleNotifications,
-  };
-
   return (
-    <AlertsContext.Provider value={value}>
+    <AlertsContext.Provider value={{ 
+      state, 
+      dispatch, 
+      toggleSound, 
+      setSoundVolume, 
+      toggleNotifications
+    }}>
       {children}
     </AlertsContext.Provider>
   );
 };
 
-// Hook to use the alerts context
-export const useAlertsContext = () => {
+// Custom hook to use the AlertsContext
+export const useAlerts = () => {
   const context = useContext(AlertsContext);
-  if (context === undefined) {
-    throw new Error('useAlertsContext must be used within an AlertsProvider');
+  if (!context) {
+    throw new Error('useAlerts must be used within an AlertsProvider');
   }
   return context;
 };

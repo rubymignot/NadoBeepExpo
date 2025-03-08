@@ -187,11 +187,15 @@ export const styles = StyleSheet.create({
     height: 220,
     borderRadius: 12,
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
+    ...(Platform.OS === 'web' ? {
+      boxShadow: '0px 3px 4px rgba(0, 0, 0, 0.2)'
+    } : {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      elevation: 5,
+    }),
   } as ImageStyle,
   noAlertsText: {
     fontSize: 20,
@@ -203,20 +207,21 @@ export const styles = StyleSheet.create({
   noAlertsSubtext: {
     fontSize: 14,
     color: COLORS.text.secondary,
-    marginBottom: 20,
-    fontFamily: FONTS.regular,
-    textAlign: 'center',
   },
   refreshButton: {
     backgroundColor: COLORS.primary,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
+    ...(Platform.OS === 'web' ? {
+      boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.2)'
+    } : {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 3,
+      elevation: 3,
+    }),
   },
   refreshButtonText: {
     color: COLORS.white,

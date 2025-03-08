@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 
 export const COLORS = {
   primary: '#e74c3c',
+  primaryLight: '#e74c3c',
   primaryDark: '#c0392b',
   secondary: '#3498db',
   secondaryDark: '#2980b9',
@@ -21,6 +22,12 @@ export const COLORS = {
     light: '#95a5a6',
     inverse: '#ffffff',
   },
+  error: '#e74c3c',
+  errorLight: '#f9dddd',
+  card: '#ffffff',
+  cardShadow: '#000000',
+  border: '#bdc3c7',
+  borderLight: '#ecf0f1',
 };
 
 export const FONTS = {
@@ -32,34 +39,34 @@ export const FONTS = {
 
 export const SHADOWS = {
   small: {
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    ...Platform.select({
+      ios: {
+        boxShadow: '0px 2px 2px rgba(0, 0, 0, 0.1)',
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   medium: {
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
+    ...Platform.select({
+      ios: {
+        boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.15)',
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   large: {
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
+    ...Platform.select({
+      ios: {
+        boxShadow: '0px 8px 12px rgba(0, 0, 0, 0.2)',
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
 };
 

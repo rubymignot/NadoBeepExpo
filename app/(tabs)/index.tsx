@@ -14,16 +14,15 @@ import { useRouter } from 'expo-router';
 import { Volume2, VolumeX, Bell, BellOff, AlertTriangle, CheckCircle } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import Slider from '@react-native-community/slider';
+import notifee, { AuthorizationStatus } from '@notifee/react-native';
 
 import { AlertItem } from '../../components/AlertList/AlertItem';
 import { Alert } from '../../types/alerts';
 import { WebAlertGrid } from '../../components/AlertList/WebAlertGrid';
 import { FILTERED_ALERT_TYPES } from '@/constants/alerts';
 import { styles } from '../../styles/alerts-screen.styles';
-import { useAlertsContext } from '@/context/AlertsContext';
+import { useAlerts } from '@/context/AlertsContext';  // Changed from useAlertsContext
 import { getRelativeTime } from '@/utils/dateUtils';
-import { requestNotificationPermissions } from '@/services/notificationService';
 import { enableAudioPlayback } from '@/services/soundService';
 
 const APP_ICON = require('../../assets/images/icon.png');
@@ -37,23 +36,16 @@ export default function AlertsScreen() {
   const isWeb = Platform.OS === 'web';
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   // Get context
   const { 
-    state: { 
-      alerts, 
-      isLoading, 
-      error, 
-      lastUpdate, 
-      isSoundEnabled, 
-      soundVolume, 
-      notificationsEnabled 
-    },
-    fetchAlerts,
-    toggleSound,
-    setSoundVolume,
-    toggleNotifications
-  } = useAlertsContext();
+    state: { notificationsEnabled },
+    toggleNotifications 
+  } = useAlerts();
 
   // Handle enabling audio for web browsers
   const handleEnableAudio = useCallback(() => {
@@ -76,27 +68,43 @@ export default function AlertsScreen() {
     });
   }, [router]);
 
+  // Fetch alerts from API
+  const fetchAlerts = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch('https://api.weather.gov/alerts/active', {
+        headers: {
+          'User-Agent': '(NadoBeep, contact@nadobeep.com)',
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      // Filter alerts here based on your criteria
+      const filteredAlerts = data.features.filter((alert: any) => 
+        FILTERED_ALERT_TYPES.includes(alert.properties.event) &&
+        alert.geometry && 
+        alert.geometry.type === 'Polygon'
+      );
+      
+      setAlerts(filteredAlerts);
+      setLastUpdate(new Date());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch alerts');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   // Handle refresh - pull to refresh
   const onRefresh = useCallback(() => {
     fetchAlerts();
   }, [fetchAlerts]);
-
-  // Handle notification toggle
-  const handleNotificationToggle = async () => {
-    if (!notificationsEnabled) {
-      // Request permissions when enabling
-      const permitted = await requestNotificationPermissions();
-      if (permitted) {
-        toggleNotifications();
-      } else {
-        // Show some feedback that permissions were denied
-        console.log('Notification permissions denied');
-      }
-    } else {
-      // Just toggle off if already enabled
-      toggleNotifications();
-    }
-  };
 
   // Format the filter types for display
   const getFilterTypesString = () => {
@@ -112,6 +120,16 @@ export default function AlertsScreen() {
     if (!lastUpdate) return 'Never updated';
     return `Last updated ${getRelativeTime(lastUpdate)}`;
   };
+
+  // Load alerts on component mount
+  React.useEffect(() => {
+    fetchAlerts();
+    
+    // Set up polling interval
+    const intervalId = setInterval(fetchAlerts, 30000); // Every 30 seconds
+    
+    return () => clearInterval(intervalId);
+  }, [fetchAlerts]);
 
   return (
     <View style={styles.container}>
