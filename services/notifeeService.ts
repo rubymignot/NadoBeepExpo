@@ -53,7 +53,6 @@ export async function startForegroundService(alertCount = 0) {
         ongoing: true,
         color: AndroidColor.MAROON,
         colorized: true,
-        visibility: alertCount > 0 ? AndroidVisibility.PUBLIC : AndroidVisibility.PRIVATE,
         pressAction: {
           id: 'default',
         },
@@ -108,7 +107,7 @@ export async function updateForegroundNotification(alertCount = 0) {
         asForegroundService: true,
         ongoing: true,
         color: AndroidColor.MAROON,
-        visibility: alertCount > 0 ? AndroidVisibility.PUBLIC : AndroidVisibility.PRIVATE,
+        visibility: AndroidVisibility.PUBLIC,
         colorized: true,
         pressAction: {
           id: 'default',
@@ -320,76 +319,96 @@ export async function showAlertNotification(
 
 // Register the foreground service task
 export function registerForegroundService() {
-  notifee.registerForegroundService(notification => {
-    return new Promise(() => {
-      console.log('[NotifeeService] Foreground service started');
-      
-      // Setup polling interval
-      let pollingInterval: NodeJS.Timeout | null = null;
-      
-      // Run our first check
-      checkForAlerts()
-        .then(() => {
-          console.log('[NotifeeService] Initial alert check complete');
-        })
-        .catch(error => {
-          console.error('[NotifeeService] Initial alert check failed:', error);
-        });
-      
-      // Setup regular polling
-      pollingInterval = setInterval(async () => {
-        try {
-          const enabled = await AsyncStorage.getItem('notificationsEnabled');
-          if (enabled !== 'true') {
-            if (pollingInterval) {
-              clearInterval(pollingInterval);
-              pollingInterval = null;
-            }
-            await notifee.stopForegroundService();
+  try {
+    notifee.registerForegroundService(notification => {
+      return new Promise(() => {
+        console.log('[NotifeeService] Foreground service started');
+        
+        // Setup polling interval
+        let pollingInterval: NodeJS.Timeout | null = null;
+        let isServiceRunning = true;
+        
+        // Run our first check with proper error handling
+        checkForAlerts()
+          .then(() => {
+            console.log('[NotifeeService] Initial alert check complete');
+          })
+          .catch(error => {
+            console.error('[NotifeeService] Initial alert check failed:', error);
+          });
+        
+        // Setup regular polling with solid error handling
+        pollingInterval = setInterval(async () => {
+          if (!isServiceRunning) {
+            if (pollingInterval) clearInterval(pollingInterval);
             return;
           }
           
-          // Update service timestamp
-          await AsyncStorage.setItem('last_foreground_service_run', Date.now().toString());
-          
-          await checkForAlerts();
-        } catch (error) {
-          console.error('[NotifeeService] Error in polling interval:', error);
-        }
-      }, 30000); // Poll every 30 seconds
-      
-      // Listen for events
-      const unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
-        console.log('[NotifeeService] Foreground event received:', type, detail.pressAction?.id);
-        
-        if (type === EventType.ACTION_PRESS) {
-          // Check which action was pressed
-          if (detail.pressAction?.id === 'check') {
-            // Manual check button pressed
-            console.log('[NotifeeService] Manual check requested from foreground');
-            checkForAlerts()
-              .then(() => console.log('[NotifeeService] Manual check completed'))
-              .catch(err => console.error('[NotifeeService] Manual check failed:', err));
-          } 
-          else if (detail.pressAction?.id === 'stop') {
-            // Stop button pressed
-            console.log('[NotifeeService] Stop requested from foreground');
-            if (pollingInterval) {
-              clearInterval(pollingInterval);
-              pollingInterval = null;
+          try {
+            const enabled = await AsyncStorage.getItem('notificationsEnabled');
+            if (enabled !== 'true') {
+              if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+              }
+              isServiceRunning = false;
+              await notifee.stopForegroundService();
+              return;
             }
             
-            // Update notification setting
-            AsyncStorage.setItem('notificationsEnabled', 'false')
-              .catch(err => console.error('[NotifeeService] Failed to update settings:', err));
-              
-            // Stop the foreground service
-            notifee.stopForegroundService();
+            // Update service timestamp
+            await AsyncStorage.setItem('last_foreground_service_run', Date.now().toString());
+            
+            await checkForAlerts();
+          } catch (error) {
+            console.error('[NotifeeService] Error in polling interval:', error);
+            // Don't exit polling on error - just continue to next interval
           }
-        }
+        }, 30000); // Poll every 30 seconds
+        
+        // Listen for events
+        const unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
+          try {
+            console.log('[NotifeeService] Foreground event received:', type, detail.pressAction?.id);
+            
+            if (type === EventType.ACTION_PRESS) {
+              // Check which action was pressed
+              if (detail.pressAction?.id === 'check') {
+                // Manual check button pressed
+                console.log('[NotifeeService] Manual check requested from foreground');
+                checkForAlerts()
+                  .then(() => console.log('[NotifeeService] Manual check completed'))
+                  .catch(err => console.error('[NotifeeService] Manual check failed:', err));
+              } 
+              else if (detail.pressAction?.id === 'stop') {
+                // Stop button pressed
+                console.log('[NotifeeService] Stop requested from foreground');
+                if (pollingInterval) {
+                  clearInterval(pollingInterval);
+                  pollingInterval = null;
+                }
+                
+                isServiceRunning = false;
+                
+                // Update notification setting
+                AsyncStorage.setItem('notificationsEnabled', 'false')
+                  .catch(err => console.error('[NotifeeService] Failed to update settings:', err));
+                  
+                // Stop the foreground service
+                notifee.stopForegroundService();
+              }
+            }
+          } catch (error) {
+            console.error('[NotifeeService] Error handling foreground event:', error);
+          }
+        });
       });
     });
-  });
+    
+    console.log('[NotifeeService] Foreground service registered successfully');
+  } catch (error) {
+    console.error('[NotifeeService] Failed to register foreground service:', error);
+  }
 }
 
 // Register background event handler

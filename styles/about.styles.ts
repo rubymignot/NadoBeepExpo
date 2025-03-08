@@ -1,4 +1,10 @@
-import { StyleSheet, Platform, Dimensions, ViewStyle, ImageStyle } from 'react-native';
+import {
+  StyleSheet,
+  Platform,
+  Dimensions,
+  ViewStyle,
+  ImageStyle,
+} from 'react-native';
 import { COLORS, FONTS, SHADOWS, LAYOUT } from '../constants/theme';
 
 const windowWidth = Dimensions.get('window').width;
@@ -283,8 +289,8 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
   },
-  
-  // Battery settings 
+
+  // Battery settings
   batteryButton: {
     backgroundColor: COLORS.warning,
     paddingVertical: 10,
@@ -485,15 +491,7 @@ export const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 25,
     marginVertical: 8,
-    ...(Platform.OS === 'web' ? {
-      boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.2)'
-    } : {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.2,
-      shadowRadius: 3,
-      elevation: 3,
-    }),
+    elevation: 3,
   },
   debugButtonText: {
     color: COLORS.white,

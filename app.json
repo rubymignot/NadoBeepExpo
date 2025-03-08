@@ -2,7 +2,7 @@
   "expo": {
     "name": "NadoBeep",
     "slug": "nadobeep",
-    "version": "1.2.0a",
+    "version": "1.2.1a",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "nadobeep",

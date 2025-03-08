@@ -6,6 +6,7 @@ import {
   stopForegroundService as stopNotifeeService,
   isNotifeeServiceRunning,
   checkForAlerts,
+  createNotificationChannels
 } from './notifeeService';
 import { 
   checkForWebAlerts,
@@ -18,6 +19,8 @@ const LAST_SERVICE_RUN_KEY = 'last_foreground_service_run';
 
 // Poll for alerts in the foreground
 let pollingInterval: ReturnType<typeof setInterval> | null = null;
+let serviceStarting = false; // Flag to prevent concurrent service starts
+let serviceStopping = false; // Flag to prevent concurrent service stops
 
 // Helper function to get active alert count
 const getActiveAlertCount = async (): Promise<number> => {
@@ -37,20 +40,25 @@ const startPollingForAlerts = () => {
   // Clear any existing interval
   stopPollingForAlerts();
   
-  // Run the first check immediately
-  if (Platform.OS === 'web') {
-    checkForWebAlerts().catch(error => {
-      console.error('[AlertService] Initial web check failed:', error);
-    });
-  } else {
-    checkForAlerts().catch(error => {
-      console.error('[AlertService] Initial check failed:', error);
-    });
+  // Run the first check immediately - but wrap in try/catch to prevent crashes
+  try {
+    if (Platform.OS === 'web') {
+      checkForWebAlerts().catch(error => {
+        console.error('[AlertService] Initial web check failed:', error);
+      });
+    } else {
+      checkForAlerts().catch(error => {
+        console.error('[AlertService] Initial check failed:', error);
+      });
+    }
+  } catch (error) {
+    console.error('[AlertService] Error during initial alert check:', error);
   }
   
-  // Set up new interval
+  // Set up new interval with safe execution
   pollingInterval = setInterval(async () => {
     try {
+      // Check if notifications are still enabled
       const notificationsEnabled = await AsyncStorage.getItem('notificationsEnabled');
       if (notificationsEnabled !== 'true') {
         stopPollingForAlerts();
@@ -62,18 +70,34 @@ const startPollingForAlerts = () => {
       
       // Use web or native check based on platform
       if (Platform.OS === 'web') {
-        await checkForWebAlerts();
+        try {
+          await checkForWebAlerts();
+        } catch (error) {
+          console.error('[AlertService] Web alert check failed:', error);
+        }
       } else {
-        await checkForAlerts();
-        
-        // Update notification with Notifee
-        const alertCount = await getActiveAlertCount();
-        await updateForegroundNotification(alertCount);
+        try {
+          await checkForAlerts();
+          
+          // Update notification with Notifee
+          const alertCount = await getActiveAlertCount();
+          await updateForegroundNotification(alertCount);
+        } catch (error) {
+          console.error('[AlertService] Native alert check failed:', error);
+          
+          // Track error 
+          const errorCount = parseInt(await AsyncStorage.getItem('fetchErrorCount') || '0', 10);
+          await AsyncStorage.setItem('fetchErrorCount', (errorCount + 1).toString());
+        }
       }
     } catch (error) {
       console.error('[AlertService] Error in polling cycle:', error);
     }
   }, SERVICE_CHECK_INTERVAL);
+  
+  // Update active status in storage
+  AsyncStorage.setItem('backgroundIntervalActive', 'true')
+    .catch(err => console.error('[AlertService] Failed to update interval status:', err));
 };
 
 // Stop the foreground polling
@@ -81,15 +105,29 @@ const stopPollingForAlerts = () => {
   if (pollingInterval) {
     clearInterval(pollingInterval);
     pollingInterval = null;
+    
+    // Update active status in storage
+    AsyncStorage.setItem('backgroundIntervalActive', 'false')
+      .catch(err => console.error('[AlertService] Failed to update interval status:', err));
   }
 };
 
 // Start the alert services (platform specific)
 export const startAlertServices = async (): Promise<boolean> => {
+  // Prevent concurrent starts
+  if (serviceStarting) {
+    console.log('[AlertService] Service start already in progress');
+    return false;
+  }
+  
   try {
+    serviceStarting = true;
+    
+    // First check if notifications are enabled
     const notificationsEnabled = await AsyncStorage.getItem('notificationsEnabled');
     if (notificationsEnabled !== 'true') {
       console.log('[AlertService] Notifications disabled, not starting services');
+      serviceStarting = false;
       return false;
     }
     
@@ -102,6 +140,7 @@ export const startAlertServices = async (): Promise<boolean> => {
         const permissionGranted = await requestNotificationPermission();
         if (!permissionGranted) {
           console.log('[AlertService] Web notification permission not granted');
+          serviceStarting = false;
           return false;
         }
       }
@@ -113,33 +152,37 @@ export const startAlertServices = async (): Promise<boolean> => {
       
       // Update timestamp
       await AsyncStorage.setItem(LAST_SERVICE_RUN_KEY, Date.now().toString());
-      
+      serviceStarting = false;
       return true;
     }
     
     // Native platforms (primarily Android)
     if (Platform.OS !== 'android') {
       console.log('[AlertService] Full background services only supported on Android');
+      serviceStarting = false;
       return false;
     }
     
     try {
-      const notificationsEnabled = await AsyncStorage.getItem('notificationsEnabled');
-      if (notificationsEnabled !== 'true') {
-        console.log('[AlertService] Notifications disabled, not starting services');
-        return false;
-      }
-      
-      console.log('[AlertService] Starting alert services with Notifee');
+      // Create notification channels first to ensure they exist
+      await createNotificationChannels();
       
       // Get existing alert count
       const alertCount = await getActiveAlertCount();
+      
+      console.log('[AlertService] Starting alert services with Notifee');
+      
+      // Store the current time as service start time
+      await AsyncStorage.setItem('serviceStartTime', new Date().toISOString());
       
       // Start the Notifee foreground service
       const success = await startNotifeeService(alertCount);
       if (!success) {
         throw new Error('Failed to create service notification');
       }
+      
+      // Wait a moment to ensure service is started
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       // Start foreground polling if app is active
       if (AppState.currentState === 'active') {
@@ -150,32 +193,46 @@ export const startAlertServices = async (): Promise<boolean> => {
       await AsyncStorage.setItem(LAST_SERVICE_RUN_KEY, Date.now().toString());
       
       console.log('[AlertService] Services started successfully');
+      serviceStarting = false;
       return true;
     } catch (error) {
       console.error('[AlertService] Failed to start services:', error);
+      serviceStarting = false;
       return false;
     }
   } catch (error) {
-    console.error('[AlertService] Failed to start services:', error);
+    console.error('[AlertService] Error in startAlertServices:', error);
+    serviceStarting = false;
     return false;
   }
 };
 
 // Stop alert services
 export const stopAlertServices = async (): Promise<boolean> => {
-  console.log('[AlertService] Stopping alert services');
+  // Prevent concurrent stops
+  if (serviceStopping) {
+    console.log('[AlertService] Service stop already in progress');
+    return false;
+  }
   
   try {
+    serviceStopping = true;
+    console.log('[AlertService] Stopping alert services');
+    
     // Stop foreground polling
     stopPollingForAlerts();
     
-    // Stop Notifee foreground service
-    await stopNotifeeService();
+    if (Platform.OS === 'android') {
+      // Stop Notifee foreground service
+      await stopNotifeeService();
+    }
     
     console.log('[AlertService] Services stopped');
+    serviceStopping = false;
     return true;
   } catch (error) {
     console.error('[AlertService] Failed to stop services:', error);
+    serviceStopping = false;
     return false;
   }
 };
@@ -184,8 +241,14 @@ export const stopAlertServices = async (): Promise<boolean> => {
 export const isAlertServiceRunning = async (): Promise<boolean> => {
   try {
     // First check Notifee service status
-    const notifeeRunning = await isNotifeeServiceRunning();
-    if (notifeeRunning) return true;
+    if (Platform.OS === 'android') {
+      try {
+        const notifeeRunning = await isNotifeeServiceRunning();
+        if (notifeeRunning) return true;
+      } catch (error) {
+        console.error('[AlertService] Error checking Notifee service:', error);
+      }
+    }
     
     // Fall back to checking timestamp
     const lastRunStr = await AsyncStorage.getItem(LAST_SERVICE_RUN_KEY);
@@ -205,17 +268,24 @@ export const isAlertServiceRunning = async (): Promise<boolean> => {
 // Helper to check service health and restart if needed
 export const checkAndRestartServices = async (): Promise<boolean> => {
   try {
+    // Check if notifications are enabled
     const notificationsEnabled = await AsyncStorage.getItem('notificationsEnabled');
     if (notificationsEnabled !== 'true') return false;
     
+    // Check if service is running
     const isRunning = await isAlertServiceRunning();
     
     if (!isRunning) {
       console.log('[AlertService] Service not running, restarting');
+      
+      // Stop services first to ensure clean state
       await stopAlertServices();
-      setTimeout(async () => {
-        await startAlertServices();
-      }, 1000);
+      
+      // Wait briefly before restarting
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Restart services
+      await startAlertServices();
       return true;
     }
     

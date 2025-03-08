@@ -15,14 +15,24 @@ import {
 } from '@/services/foregroundService';
 import { 
   registerForegroundService,
-  registerBackgroundHandler 
+  registerBackgroundHandler,
+  createNotificationChannels
 } from '@/services/notifeeService';
 
 // Register Notifee foreground service as early as possible
 if (Platform.OS === 'android') {
-  registerForegroundService();
-  // Register background handler to fix the warning
-  registerBackgroundHandler();
+  try {
+    // Setup notification channels first
+    createNotificationChannels().catch(error => 
+      console.error('[Layout] Failed to create notification channels:', error)
+    );
+    
+    // Register services
+    registerForegroundService();
+    registerBackgroundHandler();
+  } catch (error) {
+    console.error('[Layout] Error setting up Android notifications:', error);
+  }
 }
 
 // Prevent the splash screen from auto-hiding until we're ready
@@ -70,19 +80,28 @@ function RootLayoutNav() {
 
         // Initialize services if not already done
         if (!serviceInitialized.current && Platform.OS === 'android') {
-          const notificationsEnabled = await AsyncStorage.getItem('notificationsEnabled');
-          
-          if (notificationsEnabled === 'true') {
-            console.log('[Layout] Starting alert services');
+          try {
+            const notificationsEnabled = await AsyncStorage.getItem('notificationsEnabled');
             
-            // Start the services
-            await startAlertServices();
-            serviceInitialized.current = true;
-            
-            // Do an initial check for alerts
-            checkAlertsNow().catch(err => 
-              console.warn('[Layout] Initial alert check failed:', err)
-            );
+            if (notificationsEnabled === 'true') {
+              console.log('[Layout] Starting alert services');
+              
+              // Create notification channels
+              await createNotificationChannels();
+              
+              // Start the services
+              await startAlertServices();
+              serviceInitialized.current = true;
+              
+              // Do an initial check for alerts with a short delay
+              setTimeout(() => {
+                checkAlertsNow().catch(err => 
+                  console.warn('[Layout] Initial alert check failed:', err)
+                );
+              }, 2000);
+            }
+          } catch (error) {
+            console.error('[Layout] Error initializing Android services:', error);
           }
         }
         

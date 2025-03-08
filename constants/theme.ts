@@ -39,34 +39,15 @@ export const FONTS = {
 
 export const SHADOWS = {
   small: {
-    ...Platform.select({
-      ios: {
-        boxShadow: '0px 2px 2px rgba(0, 0, 0, 0.1)',
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    elevation: 2,
   },
   medium: {
-    ...Platform.select({
-      ios: {
-        boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.15)',
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
+    elevation: 4,
   },
   large: {
-    ...Platform.select({
-      ios: {
-        boxShadow: '0px 8px 12px rgba(0, 0, 0, 0.2)',
-      },
       android: {
         elevation: 8,
       },
-    }),
   },
 };
 

@@ -62,12 +62,16 @@ export const styles = StyleSheet.create({
   },
   header: {
     width: '100%',
-    maxWidth: isWeb ? (windowWidth > 768 ? Math.min(LAYOUT.maxWidth, windowWidth - 48) : windowWidth - 24) : '100%',
+    maxWidth: isWeb
+      ? windowWidth > 768
+        ? Math.min(LAYOUT.maxWidth, windowWidth - 48)
+        : windowWidth - 24
+      : '100%',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Platform.select({
-      web: windowWidth > 768 ? LAYOUT.contentPadding : 12, 
+      web: windowWidth > 768 ? LAYOUT.contentPadding : 12,
       android: 16,
       ios: LAYOUT.contentPadding,
     }),
@@ -101,7 +105,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-end', // Ensure buttons stay right-aligned
     minWidth: Platform.select({
-      web: windowWidth > 768 ? 180 : (isMobile ? 120 : 140),
+      web: windowWidth > 768 ? 180 : isMobile ? 120 : 140,
       default: isMobile ? 120 : 140,
     }),
   },
@@ -114,8 +118,8 @@ export const styles = StyleSheet.create({
     paddingVertical: isMobile ? 6 : 4,
     marginLeft: 8,
     width: Platform.select({
-      web: isMobile ? 150 : 150,  // Wider on mobile web (was 100)
-      default: isMobile ? 140 : 130,  // Wider on mobile native (was 100)
+      web: isMobile ? 150 : 150, // Wider on mobile web (was 100)
+      default: isMobile ? 140 : 130, // Wider on mobile native (was 100)
     }),
   },
   volumeSlider: {
@@ -138,8 +142,8 @@ export const styles = StyleSheet.create({
     marginLeft: 8,
   },
   disabledButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',  // Darker background when disabled
-    opacity: 0.7,                           // More obvious disabled state
+    backgroundColor: 'rgba(0, 0, 0, 0.2)', // Darker background when disabled
+    opacity: 0.7, // More obvious disabled state
   },
   filterInfo: {
     paddingVertical: 12,
@@ -187,15 +191,7 @@ export const styles = StyleSheet.create({
     height: 220,
     borderRadius: 12,
     marginBottom: 24,
-    ...(Platform.OS === 'web' ? {
-      boxShadow: '0px 3px 4px rgba(0, 0, 0, 0.2)'
-    } : {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: 0.2,
-      shadowRadius: 4,
-      elevation: 5,
-    }),
+    elevation: 5,
   } as ImageStyle,
   noAlertsText: {
     fontSize: 20,
@@ -213,15 +209,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 25,
-    ...(Platform.OS === 'web' ? {
-      boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.2)'
-    } : {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.2,
-      shadowRadius: 3,
-      elevation: 3,
-    }),
+    elevation: 3,
   },
   refreshButtonText: {
     color: COLORS.white,
@@ -309,6 +297,6 @@ export const styles = StyleSheet.create({
     },
     volumeControl: {
       width: 100,
-    }
-  } as any
+    },
+  } as any,
 });

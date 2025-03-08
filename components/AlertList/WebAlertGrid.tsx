@@ -130,7 +130,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     margin: 8,
     overflow: 'hidden',
-    boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.1)',
     elevation: 2,
     flex: 1,
     minWidth: 250,

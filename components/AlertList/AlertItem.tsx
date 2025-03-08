@@ -86,7 +86,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     overflow: 'hidden',
     flexDirection: 'row',
-    boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.1)',
     elevation: 2,
   },
   leftBorder: {
