@@ -18,6 +18,8 @@ import {
   registerBackgroundHandler,
   createNotificationChannels
 } from '@/services/notifeeService';
+import React from 'react';
+import { ThemeProvider } from '../context/ThemeContext';
 
 // Register Notifee foreground service as early as possible
 if (Platform.OS === 'android') {
@@ -62,7 +64,15 @@ export default function RootLayout() {
     return null;
   }
 
-  return <RootLayoutNav />;
+  return (
+    <ThemeProvider>
+      <AlertsProvider>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        </Stack>
+      </AlertsProvider>
+    </ThemeProvider>
+  );
 }
 
 function RootLayoutNav() {
@@ -135,31 +145,6 @@ function RootLayoutNav() {
       }
     };
   }, [router]);
-
-  // Set up periodic health check
-  useEffect(() => {
-    let healthCheckId: NodeJS.Timeout | null = null;
-    
-    if (Platform.OS === 'android') {
-      healthCheckId = setInterval(() => {
-        AsyncStorage.getItem('notificationsEnabled')
-          .then(enabled => {
-            if (enabled === 'true') {
-              checkAndRestartServices().catch(error => 
-                console.error('[Layout] Health check failed:', error)
-              );
-            }
-          })
-          .catch(error => 
-            console.error('[Layout] Error checking notification setting:', error)
-          );
-      }, 60000); // Check every minute
-    }
-    
-    return () => {
-      if (healthCheckId) clearInterval(healthCheckId);
-    };
-  }, []);
 
   return (
     <AlertsProvider>

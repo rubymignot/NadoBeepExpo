@@ -5,16 +5,17 @@ import {
   ViewStyle,
   ImageStyle,
 } from 'react-native';
-import { COLORS, FONTS, SHADOWS, LAYOUT } from '../constants/theme';
+import { COLORS, LIGHT_COLORS, DARK_COLORS, FONTS, SHADOWS, LAYOUT } from '../constants/theme';
 
 const windowWidth = Dimensions.get('window').width;
 const isWeb = Platform.OS === 'web';
 
-export const styles = StyleSheet.create({
+// Create a function to generate styles with the current theme colors
+export const createThemedStyles = (colors = LIGHT_COLORS) => StyleSheet.create({
   // Container and layout styles
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     ...(isWeb && {
       minHeight: '100vh',
       width: '100%',
@@ -62,13 +63,13 @@ export const styles = StyleSheet.create({
   appName: {
     fontSize: 28,
     fontFamily: FONTS.bold,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginBottom: 4,
   },
   version: {
     fontSize: 14,
     fontFamily: FONTS.regular,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginBottom: 12,
   },
   tagline: {
@@ -85,7 +86,7 @@ export const styles = StyleSheet.create({
 
   // Section styles
   section: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -98,9 +99,9 @@ export const styles = StyleSheet.create({
     ...SHADOWS.small,
   },
   warningSection: {
-    backgroundColor: '#FFEBEE',
+    backgroundColor: colors.errorLight,
     borderLeftWidth: 4,
-    borderLeftColor: COLORS.primary,
+    borderLeftColor: colors.primary,
     alignItems: 'center',
   },
   batterySection: {
@@ -111,7 +112,7 @@ export const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontFamily: FONTS.semiBold,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginBottom: 12,
   },
   sectionTitleContainer: {
@@ -122,7 +123,7 @@ export const styles = StyleSheet.create({
   paragraph: {
     fontSize: 15,
     fontFamily: FONTS.regular,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginBottom: 10,
     lineHeight: 22,
   },
@@ -168,13 +169,13 @@ export const styles = StyleSheet.create({
   monitoringTitle: {
     fontSize: 16,
     fontFamily: FONTS.semiBold,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginBottom: 4,
   },
   monitoringDescription: {
     fontSize: 14,
     fontFamily: FONTS.regular,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   monitoringWarning: {
     backgroundColor: '#FFF3E0',
@@ -417,7 +418,7 @@ export const styles = StyleSheet.create({
   footerText: {
     fontSize: 14,
     fontFamily: FONTS.regular,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginBottom: 12,
   },
   socialLinks: {
@@ -428,7 +429,7 @@ export const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: 8,
@@ -595,3 +596,6 @@ export const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
   },
 });
+
+// Export both the function and default styles for backward compatibility
+export const styles = createThemedStyles(COLORS);

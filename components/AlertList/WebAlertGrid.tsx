@@ -6,6 +6,7 @@ import { EVENT_COLORS, SEVERITY_COLORS } from '@/constants/alerts';
 import { getRelativeTime } from '@/utils/dateUtils';
 import { BREAKPOINTS, FONTS, LAYOUT } from '@/constants/theme';
 import { Dimensions } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 interface Props {
   alerts: Alert[];
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export const WebAlertGrid: React.FC<Props> = ({ alerts, onPress }) => {
+  const { isDarkMode, colors } = useTheme();
   const windowWidth = Dimensions.get('window').width;
   
   // Determine number of columns based on screen width
@@ -44,14 +46,19 @@ export const WebAlertGrid: React.FC<Props> = ({ alerts, onPress }) => {
     
     return (
       <TouchableOpacity 
-        style={styles.card} 
+        style={[
+          styles.card, 
+          { backgroundColor: colors.surface }
+        ]} 
         onPress={() => onPress(item)}
         activeOpacity={0.7}
       >
         <View style={[styles.cardBorder, { backgroundColor: getEventColor(properties.event) }]} />
         
         <View style={styles.cardHeader}>
-          <Text style={styles.eventType}>{properties.event}</Text>
+          <Text style={[styles.eventType, { color: colors.text.primary }]}>
+            {properties.event}
+          </Text>
           <Text 
             style={[
               styles.severity, 
@@ -62,27 +69,35 @@ export const WebAlertGrid: React.FC<Props> = ({ alerts, onPress }) => {
           </Text>
         </View>
         
-        <Text style={styles.headline} numberOfLines={3}>
+        <Text style={[styles.headline, { color: colors.text.primary }]} numberOfLines={3}>
           {properties.headline || `${properties.event} for ${properties.areaDesc}`}
         </Text>
         
-        <Text style={styles.areaDesc} numberOfLines={2}>
+        <Text style={[styles.areaDesc, { color: colors.text.secondary }]} numberOfLines={2}>
           {properties.areaDesc}
         </Text>
         
-        <View style={styles.cardFooter}>
+        <View style={[
+          styles.cardFooter, 
+          { borderTopColor: isDarkMode ? '#333' : '#f1f1f1' }
+        ]}>
           <View style={styles.timeInfo}>
-            <Clock size={14} color="#7f8c8d" />
-            <Text style={styles.timeText}>
+            <Clock size={14} color={colors.text.secondary} />
+            <Text style={[styles.timeText, { color: colors.text.secondary }]}>
               {getTimeAgo(properties.sent)}
             </Text>
           </View>
           
           <TouchableOpacity 
-            style={styles.detailButton} 
+            style={[
+              styles.detailButton, 
+              { backgroundColor: isDarkMode ? '#333' : '#f4f4f4' }
+            ]} 
             onPress={() => onPress(item)}
           >
-            <Text style={styles.detailButtonText}>View Details</Text>
+            <Text style={[styles.detailButtonText, { color: colors.text.secondary }]}>
+              View Details
+            </Text>
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -126,7 +141,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   card: {
-    backgroundColor: '#fff',
+    // backgroundColor moved to component for theming
     borderRadius: 8,
     margin: 8,
     overflow: 'hidden',
@@ -149,7 +164,7 @@ const styles = StyleSheet.create({
   eventType: {
     fontSize: 16,
     fontFamily: FONTS.semiBold,
-    color: '#2c3e50',
+    // color moved to component for theming
   },
   severity: {
     fontSize: 12,
@@ -163,7 +178,7 @@ const styles = StyleSheet.create({
   headline: {
     fontSize: 14,
     fontFamily: FONTS.medium,
-    color: '#34495e',
+    // color moved to component for theming
     lineHeight: 20,
     paddingHorizontal: 12,
     marginBottom: 8,
@@ -171,7 +186,7 @@ const styles = StyleSheet.create({
   areaDesc: {
     fontSize: 13,
     fontFamily: FONTS.regular,
-    color: '#7f8c8d',
+    // color moved to component for theming
     paddingHorizontal: 12,
     marginBottom: 12,
   },
@@ -180,7 +195,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#f1f1f1',
+    // borderTopColor moved to component for theming
     padding: 12,
     paddingTop: 10,
     marginTop: 'auto',
@@ -192,11 +207,11 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 12,
     fontFamily: FONTS.regular,
-    color: '#7f8c8d',
+    // color moved to component for theming
     marginLeft: 4,
   },
   detailButton: {
-    backgroundColor: '#f4f4f4',
+    // backgroundColor moved to component for theming
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 4,
@@ -204,6 +219,6 @@ const styles = StyleSheet.create({
   detailButtonText: {
     fontSize: 12,
     fontFamily: FONTS.medium,
-    color: '#7f8c8d',
+    // color moved to component for theming
   },
 });

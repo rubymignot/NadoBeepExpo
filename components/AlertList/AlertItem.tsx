@@ -5,6 +5,7 @@ import { Alert } from '@/types/alerts';
 import { EVENT_COLORS, SEVERITY_COLORS } from '@/constants/alerts';
 import { getRelativeTime } from '@/utils/dateUtils';
 import { FONTS } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 
 interface Props {
   alert: Alert;
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export const AlertItem: React.FC<Props> = ({ alert, onPress }) => {
+  const { isDarkMode, colors } = useTheme();
   const { properties } = alert;
   
   // Get color for the event type 
@@ -32,7 +34,10 @@ export const AlertItem: React.FC<Props> = ({ alert, onPress }) => {
 
   return (
     <TouchableOpacity 
-      style={styles.container} 
+      style={[
+        styles.container, 
+        { backgroundColor: colors.surface }
+      ]} 
       onPress={() => onPress(alert)}
       activeOpacity={0.7}
     >
@@ -40,7 +45,9 @@ export const AlertItem: React.FC<Props> = ({ alert, onPress }) => {
       
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.eventType}>{properties.event}</Text>
+          <Text style={[styles.eventType, { color: colors.text.primary }]}>
+            {properties.event}
+          </Text>
           <Text 
             style={[
               styles.severity, 
@@ -51,27 +58,29 @@ export const AlertItem: React.FC<Props> = ({ alert, onPress }) => {
           </Text>
         </View>
         
-        <Text style={styles.headline} numberOfLines={2}>
+        <Text style={[styles.headline, { color: colors.text.primary }]} numberOfLines={2}>
           {properties.headline || `${properties.event} for ${properties.areaDesc}`}
         </Text>
         
-        <Text style={styles.areaDesc} numberOfLines={1}>
+        <Text style={[styles.areaDesc, { color: colors.text.secondary }]} numberOfLines={1}>
           {properties.areaDesc}
         </Text>
         
         <View style={styles.footer}>
           <View style={styles.timeInfo}>
-            <Clock size={14} color="#7f8c8d" />
-            <Text style={styles.timeText}>
+            <Clock size={14} color={colors.text.secondary} />
+            <Text style={[styles.timeText, { color: colors.text.secondary }]}>
               {getTimeAgo(properties.sent)}
             </Text>
           </View>
           
           <TouchableOpacity 
-            style={styles.detailButton} 
+            style={[styles.detailButton, { backgroundColor: isDarkMode ? '#333' : '#f4f4f4' }]} 
             onPress={() => onPress(alert)}
           >
-            <Text style={styles.detailButtonText}>Details</Text>
+            <Text style={[styles.detailButtonText, { color: colors.text.secondary }]}>
+              Details
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -81,7 +90,7 @@ export const AlertItem: React.FC<Props> = ({ alert, onPress }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
+    // backgroundColor moved to component for theming
     borderRadius: 8,
     marginBottom: 12,
     overflow: 'hidden',
@@ -104,7 +113,7 @@ const styles = StyleSheet.create({
   eventType: {
     fontSize: 16,
     fontFamily: FONTS.semiBold,
-    color: '#2c3e50',
+    // color moved to component for theming
   },
   severity: {
     fontSize: 12,
@@ -118,14 +127,14 @@ const styles = StyleSheet.create({
   headline: {
     fontSize: 14,
     fontFamily: FONTS.medium,
-    color: '#34495e',
+    // color moved to component for theming
     marginBottom: 6,
     lineHeight: 20,
   },
   areaDesc: {
     fontSize: 13,
     fontFamily: FONTS.regular,
-    color: '#7f8c8d',
+    // color moved to component for theming
     marginBottom: 12,
   },
   footer: {
@@ -140,11 +149,11 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 12,
     fontFamily: FONTS.regular,
-    color: '#7f8c8d',
+    // color moved to component for theming
     marginLeft: 4,
   },
   detailButton: {
-    backgroundColor: '#f4f4f4',
+    // backgroundColor moved to component for theming
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 4,
@@ -152,6 +161,6 @@ const styles = StyleSheet.create({
   detailButtonText: {
     fontSize: 12,
     fontFamily: FONTS.medium,
-    color: '#7f8c8d',
+    // color moved to component for theming
   },
 });

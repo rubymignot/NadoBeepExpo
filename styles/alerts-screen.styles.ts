@@ -5,13 +5,7 @@ import {
   ViewStyle,
   ImageStyle,
 } from 'react-native';
-import {
-  COLORS,
-  FONTS,
-  SHADOWS,
-  BREAKPOINTS,
-  LAYOUT,
-} from '../constants/theme';
+import { COLORS, LIGHT_COLORS, DARK_COLORS, BREAKPOINTS, FONTS, LAYOUT, SHADOWS } from '../constants/theme';
 
 const windowWidth = Dimensions.get('window').width;
 const isWeb = Platform.OS === 'web';
@@ -31,10 +25,11 @@ const getCardWidth = () => {
   return '100%';
 };
 
-export const styles = StyleSheet.create({
+// Create a function to generate styles with the current theme colors
+export const createThemedStyles = (colors = LIGHT_COLORS) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   innerContainer: {
     flex: 1,
@@ -148,19 +143,20 @@ export const styles = StyleSheet.create({
   filterInfo: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: Platform.OS === 'web' ? 
+      colors.surface : `${colors.surface}E6`, // E6 = 90% opacity
     marginBottom: 8,
   },
   filterText: {
     fontSize: 12,
     fontFamily: FONTS.medium,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     textAlign: 'center',
   },
   refreshText: {
     fontSize: 10,
     fontFamily: FONTS.regular,
-    color: COLORS.text.light,
+    color: colors.text.light,
     textAlign: 'center',
     marginTop: 4,
   },
@@ -195,14 +191,14 @@ export const styles = StyleSheet.create({
   } as ImageStyle,
   noAlertsText: {
     fontSize: 20,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginBottom: 8,
     fontFamily: FONTS.semiBold,
     textAlign: 'center',
   },
   noAlertsSubtext: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   refreshButton: {
     backgroundColor: COLORS.primary,
@@ -230,7 +226,7 @@ export const styles = StyleSheet.create({
     fontSize: 14,
   },
   alertCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -247,12 +243,12 @@ export const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     fontFamily: FONTS.medium,
   },
   errorText: {
     marginTop: 10,
-    color: '#e74c3c',
+    color: colors.error,
     fontSize: 16,
     textAlign: 'center',
     fontFamily: FONTS.medium,
@@ -290,6 +286,146 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  content: {
+    padding: 16,
+  },
+  eventType: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    fontFamily: 'Inter-Bold',
+  },
+  severityBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+    fontFamily: 'Inter-Bold',
+  },
+  headline: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 12,
+    fontFamily: 'Inter-SemiBold',
+  },
+  areaDesc: {
+    fontSize: 16,
+    color: '#34495e',
+    marginBottom: 16,
+    fontFamily: 'Inter-Regular',
+  },
+  timeSection: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  timeLabel: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    marginBottom: 4,
+    fontFamily: 'Inter-Medium',
+  },
+  timeValue: {
+    fontSize: 16,
+    color: '#2c3e50',
+    marginBottom: 12,
+    fontFamily: 'Inter-Regular',
+  },
+  section: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 8,
+    fontFamily: 'Inter-SemiBold',
+  },
+  sectionText: {
+    fontSize: 16,
+    color: '#34495e',
+    lineHeight: 24,
+    fontFamily: 'Inter-Regular',
+  },
+  detailsSection: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  detailsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 12,
+    fontFamily: 'Inter-SemiBold',
+  },
+  detailRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  detailLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: '#7f8c8d',
+    fontFamily: 'Inter-Medium',
+  },
+  detailValue: {
+    flex: 2,
+    fontSize: 14,
+    color: '#2c3e50',
+    fontFamily: 'Inter-Regular',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    paddingTop: Platform.OS === 'android' ? 24 : 16, // More padding for Android
+    marginTop: Platform.OS === 'android' ? 8 : 0, // Extra margin for Android
+    marginBottom: 8,
+    borderRadius: 8,
+  },
+  backButtonText: {
+    marginLeft: 8,
+    fontSize: 16,
+    color: colors.primary, // Use theme color
+    fontFamily: 'Inter-Medium',
+  },
+  nwsLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginBottom: 30,
+  },
+  nwsLinkText: {
+    fontSize: 16,
+    color: '#3498db',
+    marginRight: 8,
+    fontFamily: 'Inter-Medium',
+  },
+  retryButton: {
+    marginTop: 20,
+    backgroundColor: '#e74c3c',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 5,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontFamily: 'Inter-Bold',
+  },
   // Add responsive styles for smaller screens
   '@media (max-width: 360px)': {
     headerButtons: {
@@ -300,3 +436,6 @@ export const styles = StyleSheet.create({
     },
   } as any,
 });
+
+// Export both the function and default styles for backward compatibility
+export const styles = createThemedStyles(COLORS);

@@ -16,42 +16,66 @@ export enum AlertEvent {
   ExtremeWindWarning = 'Extreme Wind Warning',
 }
 
-export const FILTERED_ALERT_TYPES = [
-  AlertEvent.TornadoWarning,
-  AlertEvent.FlashFloodWarning,
-  AlertEvent.FlashFloodStatement,
-  AlertEvent.FloodWarning,
-  AlertEvent.FloodStatement,
-  AlertEvent.SevereThunderstormWarning,
-  AlertEvent.SpecialMarineWarning,
-  AlertEvent.SevereWeatherStatement,
-  AlertEvent.SnowSquallWarning,
-  AlertEvent.DustStormWarning,
-  AlertEvent.DustStormAdvisory,
-  AlertEvent.ExtremeWindWarning,
-];
-
-export const SEVERITY_COLORS: Record<AlertSeverity, string> = {
-  [AlertSeverity.Extreme]: '#7b241c',
-  [AlertSeverity.Severe]: '#c0392b',
-  [AlertSeverity.Moderate]: '#e67e22',
-  [AlertSeverity.Minor]: '#f1c40f',
-  [AlertSeverity.Unknown]: '#7f8c8d',
+// Alert severities and their corresponding colors
+export const SEVERITY_COLORS = {
+  extreme: '#d63031', // Deep red
+  severe: '#e67e22',  // Orange
+  moderate: '#f39c12', // Yellow-orange
+  minor: '#27ae60',   // Green
+  unknown: '#7f8c8d', // Gray
 };
 
-export const EVENT_COLORS: Record<ImportedAlertEvent | 'default', string> = {
-  [ImportedAlertEvent.TornadoWarning]: '#7b241c',
-  [ImportedAlertEvent.FlashFloodWarning]: '#1a5276',
-  [ImportedAlertEvent.FlashFloodStatement]: '#2874a6',
-  [ImportedAlertEvent.FloodWarning]: '#21618c',
-  [ImportedAlertEvent.FloodStatement]: '#2e86c1',
-  [ImportedAlertEvent.SevereThunderstormWarning]: '#6c3483',
-  [ImportedAlertEvent.SpecialMarineWarning]: '#2980b9',
-  [ImportedAlertEvent.SevereWeatherStatement]: '#8e44ad',
-  [ImportedAlertEvent.SnowSquallWarning]: '#2c3e50',
-  [ImportedAlertEvent.DustStormWarning]: '#d35400',
-  [ImportedAlertEvent.DustStormAdvisory]: '#e67e22',
-  [ImportedAlertEvent.ExtremeWindWarning]: '#c0392b',
-  default: '#2c3e50',
-  [ImportedAlertEvent.TestTornadoWarning]: ''
+// Update alert event types with more distinct colors
+export const EVENT_COLORS = {
+  'Tornado Warning': '#d63031',        // Deep red
+  'Flash Flood Warning': '#3498db',    // Blue
+  'Flash Flood Statement': '#2980b9',  // Darker blue
+  'Severe Thunderstorm Warning': '#9b59b6', // Purple
+  'Flood Warning': '#3498db',          // Blue
+  'Flood Statement': '#2980b9',        // Darker blue
+  'Special Marine Warning': '#2c3e50', // Navy blue
+  'Severe Weather Statement': '#7f8c8d', // Gray
+  'Snow Squall Warning': '#34495e',    // Dark gray-blue
+  'Dust Storm Warning': '#e67e22',     // Orange
+  'Extreme Wind Warning': '#e74c3c',   // Red
+  'Test Tornado Warning': '#f1c40f',   // Yellow
+  'Dust Storm Advisory': '#d35400',    // Dark orange
+  default: '#95a5a6',                  // Default gray
+};
+
+// Alert types that should be shown in the app (priority alerts)
+export const FILTERED_ALERT_TYPES = [
+  'Tornado Warning',
+  'Flash Flood Warning',
+  'Flash Flood Statement',
+  'Severe Thunderstorm Warning',
+  'Flood Warning',
+  'Flood Statement',
+  'Special Marine Warning',
+  'Severe Weather Statement',
+  'Snow Squall Warning',
+  'Dust Storm Warning',
+  'Extreme Wind Warning',
+  'Test Tornado Warning',
+];
+
+// Alert refresh intervals (in milliseconds)
+export const REFRESH_INTERVALS = {
+  FOREGROUND: 60000,  // 1 minute when app is in foreground
+  BACKGROUND: 300000, // 5 minutes when app is in background
+  ERROR: 15000,       // 15 seconds after an error
+};
+
+// Map settings
+export const MAP_CONFIG = {
+  DEFAULT_CENTER: { lat: 39.8283, lng: -98.5795 }, // US center
+  DEFAULT_ZOOM: 4,
+  MAX_ZOOM: 18,
+  MIN_ZOOM: 3,
+};
+
+// Alert popup display options
+export const ALERT_POPUP_OPTIONS = {
+  MAX_HEADLINE_LENGTH: 80, // Maximum characters to show in popup headline
+  TRUNCATE_SUFFIX: '...',  // Suffix to add when truncating text
 };

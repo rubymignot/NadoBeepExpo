@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { 
   View, 
   Text, 
-  StyleSheet, 
   ScrollView, 
   ActivityIndicator, 
   TouchableOpacity,
@@ -15,6 +14,8 @@ import { ArrowLeft, ExternalLink, AlertTriangle } from 'lucide-react-native';
 import { EVENT_COLORS, SEVERITY_COLORS } from '@/constants/alerts';
 import { getRelativeTime } from '@/utils/dateUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createThemedStyles } from '@/styles/alerts-screen.styles';
+import { useTheme } from '@/context/ThemeContext';
 
 interface AlertProperties {
   id: string;
@@ -45,6 +46,8 @@ export default function AlertDetailsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
+  const { isDarkMode, colors } = useTheme();
+  const styles = createThemedStyles(colors);
 
   // Mark an alert as seen (since the useAlerts context doesn't expose this functionality)
   const markAlertSeen = async (alertId: string) => {
@@ -71,7 +74,7 @@ export default function AlertDetailsScreen() {
       setError(null);
       const response = await fetch(`https://api.weather.gov/alerts/${alertId}`, {
         headers: {
-          'User-Agent': '(NadoBeep, contact@nadobeep.com)',
+          'User-Agent': '(NadoBeep App)',
         }
       });
       
@@ -121,16 +124,10 @@ export default function AlertDetailsScreen() {
     return EVENT_COLORS[event as keyof typeof EVENT_COLORS] || EVENT_COLORS.default;
   };
 
-  // Generate NWS link for the specific alert
-  const getNWSLink = (id: string) => {
-    return `https://alerts.weather.gov/cap/wwacapget.php?x=${id}`;
-  };
-
-  // ... rest of the component remains unchanged
   if (loading && !refreshing) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#e74c3c" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Loading alert details...</Text>
       </View>
     );
@@ -139,7 +136,7 @@ export default function AlertDetailsScreen() {
   if (error) {
     return (
       <View style={styles.centered}>
-        <AlertTriangle size={50} color="#e74c3c" />
+        <AlertTriangle size={50} color={colors.primary} />
         <Text style={styles.errorText}>Error: {error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={fetchAlertDetails}>
           <Text style={styles.retryButtonText}>Retry</Text>
@@ -169,17 +166,20 @@ export default function AlertDetailsScreen() {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          colors={['#e74c3c']}
-          tintColor="#e74c3c"
+          colors={[colors.primary]}
+          tintColor={colors.primary}
         />
       }
     >
       <TouchableOpacity 
-        style={styles.backButton} 
+        style={[
+          styles.backButton,
+          Platform.OS === 'android' ? { marginTop: 16, paddingTop: 16 } : {}
+        ]} 
         onPress={() => router.back()}
       >
-        <ArrowLeft size={24} color="#e74c3c" />
-        <Text style={styles.backButtonText}>Back to Alerts</Text>
+        <ArrowLeft size={24} color={colors.primary} />
+        <Text style={[styles.backButtonText, {color: colors.primary}]}>Back</Text>
       </TouchableOpacity>
 
       <View style={[
@@ -201,224 +201,94 @@ export default function AlertDetailsScreen() {
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.headline}>{alert.properties.headline}</Text>
-        <Text style={styles.areaDesc}>{alert.properties.areaDesc}</Text>
+        <Text style={[styles.headline, { color: colors.text.primary }]}>
+          {alert.properties.headline}
+        </Text>
+        <Text style={[styles.areaDesc, { color: colors.text.primary }]}>
+          {alert.properties.areaDesc}
+        </Text>
 
-        <View style={styles.timeSection}>
-          <Text style={styles.timeLabel}>Issued:</Text>
-          <Text style={styles.timeValue}>{formatDate(alert.properties.sent)}</Text>
-          <Text style={styles.timeLabel}>Expires:</Text>
-          <Text style={styles.timeValue}>{formatDate(alert.properties.expires)}</Text>
+        <View style={[styles.timeSection, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.timeLabel, { color: colors.text.secondary }]}>Issued:</Text>
+          <Text style={[styles.timeValue, { color: colors.text.primary }]}>
+            {formatDate(alert.properties.sent)}
+          </Text>
+          <Text style={[styles.timeLabel, { color: colors.text.secondary }]}>Expires:</Text>
+          <Text style={[styles.timeValue, { color: colors.text.primary }]}>
+            {formatDate(alert.properties.expires)}
+          </Text>
         </View>
 
         {alert.properties.instruction && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Instructions</Text>
-            <Text style={styles.sectionText}>{alert.properties.instruction}</Text>
+          <View style={[styles.section, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Instructions</Text>
+            <Text style={[styles.sectionText, { color: colors.text.primary }]}>
+              {alert.properties.instruction}
+            </Text>
           </View>
         )}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Description</Text>
-          <Text style={styles.sectionText}>{alert.properties.description}</Text>
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Description</Text>
+          <Text style={[styles.sectionText, { color: colors.text.primary }]}>
+            {alert.properties.description}
+          </Text>
         </View>
 
-        <View style={styles.detailsSection}>
-          <Text style={styles.detailsTitle}>Additional Details</Text>
+        <View style={[styles.detailsSection, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.detailsTitle, { color: colors.text.primary }]}>Additional Details</Text>
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Status:</Text>
-            <Text style={styles.detailValue}>{alert.properties.status}</Text>
+            <Text style={[styles.detailLabel, { color: colors.text.secondary }]}>Status:</Text>
+            <Text style={[styles.detailValue, { color: colors.text.primary }]}>
+              {alert.properties.status}
+            </Text>
           </View>
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Urgency:</Text>
-            <Text style={styles.detailValue}>{alert.properties.urgency}</Text>
+            <Text style={[styles.detailLabel, { color: colors.text.secondary }]}>Urgency:</Text>
+            <Text style={[styles.detailValue, { color: colors.text.primary }]}>
+              {alert.properties.urgency}
+            </Text>
           </View>
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Certainty:</Text>
-            <Text style={styles.detailValue}>{alert.properties.certainty}</Text>
+            <Text style={[styles.detailLabel, { color: colors.text.secondary }]}>Certainty:</Text>
+            <Text style={[styles.detailValue, { color: colors.text.primary }]}>
+              {alert.properties.certainty}
+            </Text>
           </View>
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Category:</Text>
-            <Text style={styles.detailValue}>{alert.properties.category}</Text>
+            <Text style={[styles.detailLabel, { color: colors.text.secondary }]}>Category:</Text>
+            <Text style={[styles.detailValue, { color: colors.text.primary }]}>
+              {alert.properties.category}
+            </Text>
           </View>
         </View>
-
-        <TouchableOpacity 
-          style={styles.nwsLink}
-          onPress={() => Linking.openURL(getNWSLink(alert.properties.id))}
-        >
-          <Text style={styles.nwsLinkText}>View on National Weather Service</Text>
-          <ExternalLink size={16} color="#3498db" />
-        </TouchableOpacity>
+                {/* Government disclaimer with improved theme styling */}
+                <View style={{
+          backgroundColor: isDarkMode ? 'rgba(70, 70, 70, 0.5)' : 'rgba(245, 245, 245, 0.9)',
+          padding: 12,
+          marginTop: 20,
+          marginBottom: 10,
+          borderRadius: 8,
+          borderLeftWidth: 4,
+          borderLeftColor: colors.text.secondary,
+        }}>
+          <Text style={{
+            color: colors.text.primary,
+            fontWeight: '600',
+            fontSize: 14,
+            marginBottom: 4,
+          }}>
+            INDEPENDENT APPLICATION NOTICE
+          </Text>
+          <Text style={{
+            color: colors.text.secondary,
+            fontSize: 13,
+            lineHeight: 18,
+          }}>
+            NadoBeep displays data from official sources but is not affiliated with any government agency.
+          </Text>
+        </View>
       </View>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  header: {
-    backgroundColor: '#fff',
-    padding: 16,
-    marginBottom: 16,
-    borderLeftWidth: 8,
-  },
-  content: {
-    padding: 16,
-  },
-  eventType: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    fontFamily: 'Inter-Bold',
-  },
-  severityBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 4,
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-    fontFamily: 'Inter-Bold',
-  },
-  headline: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2c3e50',
-    marginBottom: 12,
-    fontFamily: 'Inter-SemiBold',
-  },
-  areaDesc: {
-    fontSize: 16,
-    color: '#34495e',
-    marginBottom: 16,
-    fontFamily: 'Inter-Regular',
-  },
-  timeSection: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  timeLabel: {
-    fontSize: 14,
-    color: '#7f8c8d',
-    marginBottom: 4,
-    fontFamily: 'Inter-Medium',
-  },
-  timeValue: {
-    fontSize: 16,
-    color: '#2c3e50',
-    marginBottom: 12,
-    fontFamily: 'Inter-Regular',
-  },
-  section: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2c3e50',
-    marginBottom: 8,
-    fontFamily: 'Inter-SemiBold',
-  },
-  sectionText: {
-    fontSize: 16,
-    color: '#34495e',
-    lineHeight: 24,
-    fontFamily: 'Inter-Regular',
-  },
-  detailsSection: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  detailsTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2c3e50',
-    marginBottom: 12,
-    fontFamily: 'Inter-SemiBold',
-  },
-  detailRow: {
-    flexDirection: 'row',
-    marginBottom: 8,
-  },
-  detailLabel: {
-    flex: 1,
-    fontSize: 14,
-    color: '#7f8c8d',
-    fontFamily: 'Inter-Medium',
-  },
-  detailValue: {
-    flex: 2,
-    fontSize: 14,
-    color: '#2c3e50',
-    fontFamily: 'Inter-Regular',
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-  },
-  backButtonText: {
-    marginLeft: 8,
-    fontSize: 16,
-    color: '#e74c3c',
-    fontFamily: 'Inter-Medium',
-  },
-  nwsLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    marginBottom: 30,
-  },
-  nwsLinkText: {
-    fontSize: 16,
-    color: '#3498db',
-    marginRight: 8,
-    fontFamily: 'Inter-Medium',
-  },
-  loadingText: {
-    marginTop: 10,
-    color: '#7f8c8d',
-    fontSize: 16,
-    fontFamily: 'Inter-Medium',
-  },
-  errorText: {
-    marginTop: 10,
-    color: '#e74c3c',
-    fontSize: 16,
-    textAlign: 'center',
-    fontFamily: 'Inter-Medium',
-  },
-  retryButton: {
-    marginTop: 20,
-    backgroundColor: '#e74c3c',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 5,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontFamily: 'Inter-Bold',
-  },
-});

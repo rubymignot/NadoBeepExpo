@@ -1,8 +1,7 @@
 import { Platform } from 'react-native';
 
-// Theme constants for consistent styling across the app
-
-export const COLORS = {
+// Light theme colors
+export const LIGHT_COLORS = {
   primary: '#e74c3c',
   primaryLight: '#e74c3c',
   primaryDark: '#c0392b',
@@ -29,6 +28,38 @@ export const COLORS = {
   border: '#bdc3c7',
   borderLight: '#ecf0f1',
 };
+
+// Dark theme colors
+export const DARK_COLORS = {
+  primary: '#ff6b6b',
+  primaryLight: '#ff8585',
+  primaryDark: '#c0392b',
+  secondary: '#5dade2',
+  secondaryDark: '#3a97d4',
+  success: '#2ecc71',
+  warning: '#f5b041',
+  danger: '#ff6b6b',
+  info: '#5dade2',
+  background: '#121212',
+  surface: '#1e1e1e',
+  white: '#ffffff',
+  black: '#000000',
+  text: {
+    primary: '#e0e0e0',
+    secondary: '#b0b0b0',
+    light: '#909090',
+    inverse: '#000000',
+  },
+  error: '#ff6b6b',
+  errorLight: '#3a1a1a',
+  card: '#2a2a2a',
+  cardShadow: '#000000',
+  border: '#424242',
+  borderLight: '#333333',
+};
+
+// Original COLORS object - kept for backward compatibility
+export const COLORS = LIGHT_COLORS;
 
 export const FONTS = {
   regular: 'Inter-Regular',

@@ -11,6 +11,30 @@ let webAudio: HTMLAudioElement | null = null;
 let userInteractionOccurred = false;
 let pendingWebPlayRequest: { volume: number; resolve: (audio: HTMLAudioElement | null) => void; reject: (error: Error) => void } | null = null;
 
+// Add event system for audio state changes
+type AudioStateListener = (enabled: boolean) => void;
+const audioStateListeners: AudioStateListener[] = [];
+
+// Add a way to check if audio has been enabled
+export const isAudioEnabled = () => userInteractionOccurred;
+
+// Subscribe to audio state changes
+export const subscribeToAudioState = (listener: AudioStateListener): (() => void) => {
+  audioStateListeners.push(listener);
+  // Return unsubscribe function
+  return () => {
+    const index = audioStateListeners.indexOf(listener);
+    if (index !== -1) {
+      audioStateListeners.splice(index, 1);
+    }
+  };
+};
+
+// Notify listeners when audio state changes
+const notifyAudioStateChange = (enabled: boolean) => {
+  audioStateListeners.forEach(listener => listener(enabled));
+};
+
 // Initialize audio system
 export const initializeAudio = async () => {
   try {
@@ -50,6 +74,8 @@ export const initializeAudio = async () => {
 
 // Enable audio after user interaction
 export const enableAudioPlayback = () => {
+  const wasEnabled = userInteractionOccurred;
+  
   if (Platform.OS === 'web') {
     userInteractionOccurred = true;
     
@@ -86,7 +112,14 @@ export const enableAudioPlayback = () => {
       
       pendingWebPlayRequest = null;
     }
+    
+    // Notify listeners if state changed
+    if (!wasEnabled) {
+      notifyAudioStateChange(true);
+    }
   }
+  
+  return userInteractionOccurred;
 };
 
 // Play the alarm sound

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,21 +15,25 @@ import { Volume2, VolumeX, Bell, BellOff, AlertTriangle, CheckCircle } from 'luc
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import notifee, { AuthorizationStatus } from '@notifee/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { AlertItem } from '../../components/AlertList/AlertItem';
 import { Alert } from '../../types/alerts';
 import { WebAlertGrid } from '../../components/AlertList/WebAlertGrid';
 import { FILTERED_ALERT_TYPES } from '@/constants/alerts';
-import { styles } from '../../styles/alerts-screen.styles';
+import { useTheme } from '@/context/ThemeContext';
+import { createThemedStyles } from '@/styles/alerts-screen.styles';
 import { useAlerts } from '@/context/AlertsContext';  // Changed from useAlertsContext
 import { getRelativeTime } from '@/utils/dateUtils';
-import { enableAudioPlayback } from '@/services/soundService';
+import { enableAudioPlayback, isAudioEnabled, subscribeToAudioState } from '@/services/soundService';
 
 const APP_ICON = require('../../assets/images/icon.png');
 const MOBILE_BREAKPOINT = 600; // Width threshold for hiding the title
 
 export default function AlertsScreen() {
   const router = useRouter();
+  const { isDarkMode, colors } = useTheme();
+  const styles = createThemedStyles(colors);
   const { width: windowWidth } = useWindowDimensions();
   const showTitle = windowWidth > MOBILE_BREAKPOINT;
   const isMobile = windowWidth < MOBILE_BREAKPOINT;
@@ -46,6 +50,22 @@ export default function AlertsScreen() {
     state: { notificationsEnabled },
     toggleNotifications 
   } = useAlerts();
+
+  // Setup audio state subscription
+  useEffect(() => {
+    if (isWeb) {
+      // Initial check
+      setAudioEnabled(isAudioEnabled());
+      
+      // Subscribe to changes
+      const unsubscribe = subscribeToAudioState((enabled) => {
+        setAudioEnabled(enabled);
+      });
+      
+      // Cleanup subscription
+      return () => unsubscribe();
+    }
+  }, []);
 
   // Handle enabling audio for web browsers
   const handleEnableAudio = useCallback(() => {
@@ -134,7 +154,7 @@ export default function AlertsScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#e74c3c', '#c0392b']}
+        colors={isDarkMode ? ['#ff6b6b', '#c0392b'] : ['#e74c3c', '#c0392b']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.headerGradient}
@@ -161,9 +181,11 @@ export default function AlertsScreen() {
                 disabled={audioEnabled}
               >
                 <Volume2 size={20} color="#fff" />
-                <Text style={styles.audioEnableButtonText}>
+                {showTitle && (
+                  <Text style={styles.audioEnableButtonText}>
                   {audioEnabled ? 'Audio Enabled' : 'Enable Alert Sounds'}
-                </Text>
+                  </Text>
+                )}
                 {audioEnabled && (
                   <CheckCircle size={16} color="#fff" style={styles.checkIcon} />
                 )}
@@ -174,7 +196,11 @@ export default function AlertsScreen() {
       </LinearGradient>
 
       <View style={styles.listWrapper}>
-        <BlurView intensity={80} tint="light" style={styles.filterInfo}>
+        <BlurView 
+          intensity={80} 
+          tint={isDarkMode ? "dark" : "light"} 
+          style={styles.filterInfo}
+        >
           <Text style={styles.filterText}>
             Showing only: {getFilterTypesString()}
           </Text>

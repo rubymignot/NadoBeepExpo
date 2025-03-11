@@ -2,20 +2,24 @@ import { StyleSheet, Text, View, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
-import { COLORS, FONTS } from '@/constants/theme';
+import { COLORS } from '@/constants/theme';
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { TouchableOpacity } from 'react-native';
+import { createThemedStyles } from '@/styles/privacy-policy.styles';
+import { useTheme } from '@/context/ThemeContext';
 
 export default function PrivacyPolicyScreen() {
   const router = useRouter();
+  const { isDarkMode, colors } = useTheme();
+  const styles = createThemedStyles(colors);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar style="dark" />
+      <StatusBar style={isDarkMode ? "light" : "dark"} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color={COLORS.primary} />
+          <ArrowLeft size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Privacy Policy</Text>
         <View style={{ width: 24 }} />
@@ -115,71 +119,3 @@ export default function PrivacyPolicyScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.text.primary,
-  },
-  backButton: {
-    padding: 4,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  section: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  lastUpdated: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: COLORS.text.secondary,
-    marginBottom: 16,
-    fontStyle: 'italic',
-  },
-  introduction: {
-    fontSize: 15,
-    fontFamily: FONTS.medium,
-    color: COLORS.text.primary,
-    marginBottom: 24,
-    lineHeight: 22,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.text.primary,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  paragraph: {
-    fontSize: 15,
-    fontFamily: FONTS.regular,
-    color: COLORS.text.primary,
-    marginBottom: 16,
-    lineHeight: 22,
-  },
-  bold: {
-    fontFamily: FONTS.semiBold,
-  },
-});
