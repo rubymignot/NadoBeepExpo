@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Bell, InfoIcon, Map } from 'lucide-react-native';
+import { Bell, InfoIcon, Map, SettingsIcon } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeContext';
 
 export default function TabsLayout() {
@@ -8,6 +8,8 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      initialRouteName='index'
+      backBehavior='history'
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: isDarkMode ? '#999' : '#666',
@@ -43,10 +45,16 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color, size }) => <SettingsIcon size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="about"
         options={{
-          title: 'About',
-          tabBarIcon: ({ color, size }) => <InfoIcon size={size} color={color} />,
+          href: null
         }}
       />
       <Tabs.Screen

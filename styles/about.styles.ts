@@ -55,10 +55,10 @@ export const createThemedStyles = (colors = LIGHT_COLORS) => StyleSheet.create({
     marginBottom: 24,
   },
   appIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    marginBottom: 12,
+    width: 140,
+    height: 140,
+    marginBottom: 0,
+    marginTop: 0,
   },
   appName: {
     fontSize: 28,
@@ -453,12 +453,6 @@ export const createThemedStyles = (colors = LIGHT_COLORS) => StyleSheet.create({
       borderRadius: 8,
       alignSelf: 'center',
     }),
-  },
-  headerLogo: {
-    width: 40,
-    height: 40,
-    marginRight: 12,
-    borderRadius: 20,
   },
   headerTitle: {
     fontSize: 24,

@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, Switch, TouchableOpacity, Platform, StyleSheet } from 'react-native';
-import { AlertTriangle, Moon, Sun, Bell, BellOff, Volume2, VolumeX, Check } from 'lucide-react-native';
+import { AlertTriangle, Moon, Sun, Bell, BellOff } from 'lucide-react-native';
 import { createThemedStyles } from '@/styles/about.styles';
 import { LIGHT_COLORS, DARK_COLORS } from '@/constants/theme';
 import { isBrowserNotificationSupported } from '@/services/webNotificationService';
-import { enableAudioPlayback, isAudioEnabled } from '@/services/soundService';
+import { enableAudioPlayback } from '@/services/soundService';
+import AlertTypeSettings from './AlertTypeSettings';
 
 const isWeb = Platform.OS === 'web';
 
@@ -12,10 +13,8 @@ type AppSettingsProps = {
   isDarkMode: boolean;
   toggleTheme: () => void;
   notificationsEnabled: boolean;
-  isSoundEnabled: boolean;
   webNotificationPermission: string | null;
   handleToggleNotifications: (value: boolean) => Promise<void>;
-  handleToggleSound: (value: boolean) => Promise<void>;
   handleRequestWebPermission: () => Promise<void>;
 }
 
@@ -23,10 +22,8 @@ const AppSettings = ({
   isDarkMode,
   toggleTheme,
   notificationsEnabled,
-  isSoundEnabled,
   webNotificationPermission,
   handleToggleNotifications,
-  handleToggleSound,
   handleRequestWebPermission
 }: AppSettingsProps) => {
   const colors = isDarkMode ? DARK_COLORS : LIGHT_COLORS;
@@ -175,15 +172,15 @@ const AppSettings = ({
     </View>
   );
   
-  // Handle sound toggle, enabling audio playback if on web
-  const onSoundToggle = async (value: boolean) => {
-    // If enabling sound and on web, ensure audio is enabled first
-    if (value && isWeb && !isAudioEnabled()) {
+  // Enable audio on web when notifications are toggled on
+  const onToggleNotifications = async (value: boolean) => {
+    // If enabling notifications and on web, ensure audio is enabled
+    if (value && isWeb) {
       enableAudioPlayback();
     }
     
     // Call the parent handler
-    await handleToggleSound(value);
+    await handleToggleNotifications(value);
   };
   
   return (
@@ -272,7 +269,7 @@ const AppSettings = ({
             <Text style={localStyles.switchLabel}>Notifications</Text>
             <Switch
               value={notificationsEnabled}
-              onValueChange={handleToggleNotifications}
+              onValueChange={onToggleNotifications}
               trackColor={{ false: '#d3d3d3', true: `${colors.primary}88` }}
               thumbColor={notificationsEnabled ? colors.primary : '#f4f3f4'}
             />
@@ -280,38 +277,8 @@ const AppSettings = ({
         </View>
       </View>
       
-      {/* Sound Card */}
-      <View style={localStyles.settingsCard}>
-        <View style={localStyles.cardHeader}>
-          <View style={[localStyles.cardIcon, isSoundEnabled && localStyles.activeCardIcon]}>
-            {isSoundEnabled ? (
-              <Volume2 size={20} color={isSoundEnabled && isDarkMode ? colors.white : colors.text.primary} />
-            ) : (
-              <VolumeX size={20} color={isSoundEnabled && isDarkMode ? colors.white : colors.text.secondary} />
-            )}
-          </View>
-          <Text style={localStyles.cardTitle}>Alarm Sound</Text>
-          {renderStatusBadge(isSoundEnabled)}
-        </View>
-        
-        <View style={localStyles.cardContent}>
-          <Text style={localStyles.description}>
-            Play a loud alarm sound when tornado warnings are issued to ensure you don't miss critical alerts.
-          </Text>
-        </View>
-        
-        <View style={localStyles.cardFooter}>
-          <View style={localStyles.switchContainer}>
-            <Text style={localStyles.switchLabel}>Sound</Text>
-            <Switch
-              value={isSoundEnabled}
-              onValueChange={onSoundToggle}
-              trackColor={{ false: '#d3d3d3', true: `${colors.primary}88` }}
-              thumbColor={isSoundEnabled ? colors.primary : '#f4f3f4'}
-            />
-          </View>
-        </View>
-      </View>
+      {/* Add the Alert Type Settings Card when notifications are enabled */}
+      {notificationsEnabled && <AlertTypeSettings isDarkMode={isDarkMode} />}
       
       {/* Warning message if notifications disabled */}
       {!notificationsEnabled && (

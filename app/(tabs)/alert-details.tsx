@@ -16,6 +16,7 @@ import { getRelativeTime } from '@/utils/dateUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createThemedStyles } from '@/styles/alerts-screen.styles';
 import { useTheme } from '@/context/ThemeContext';
+import { GovDisclaimer } from '@/components/about';
 
 interface AlertProperties {
   id: string;
@@ -171,6 +172,7 @@ export default function AlertDetailsScreen() {
         />
       }
     >
+      <View style={styles.innerContainer}>
       <TouchableOpacity 
         style={[
           styles.backButton,
@@ -262,31 +264,8 @@ export default function AlertDetailsScreen() {
             </Text>
           </View>
         </View>
-                {/* Government disclaimer with improved theme styling */}
-                <View style={{
-          backgroundColor: isDarkMode ? 'rgba(70, 70, 70, 0.5)' : 'rgba(245, 245, 245, 0.9)',
-          padding: 12,
-          marginTop: 20,
-          marginBottom: 10,
-          borderRadius: 8,
-          borderLeftWidth: 4,
-          borderLeftColor: colors.text.secondary,
-        }}>
-          <Text style={{
-            color: colors.text.primary,
-            fontWeight: '600',
-            fontSize: 14,
-            marginBottom: 4,
-          }}>
-            INDEPENDENT APPLICATION NOTICE
-          </Text>
-          <Text style={{
-            color: colors.text.secondary,
-            fontSize: 13,
-            lineHeight: 18,
-          }}>
-            NadoBeep displays data from official sources but is not affiliated with any government agency.
-          </Text>
+                
+        <GovDisclaimer isDarkMode={isDarkMode} />
         </View>
       </View>
     </ScrollView>

@@ -65,6 +65,10 @@ export const createThemedStyles = (colors = LIGHT_COLORS) => StyleSheet.create({
     marginBottom: 16,
     lineHeight: 22,
   },
+  link: {
+    color: colors.primary,
+    textDecorationLine: 'underline',
+  },
   bold: {
     fontFamily: FONTS.semiBold,
   },

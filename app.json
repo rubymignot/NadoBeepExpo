@@ -2,14 +2,14 @@
   "expo": {
     "name": "NadoBeep",
     "slug": "nadobeep",
-    "version": "1.3.0b",
+    "version": "1.4.0a",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/android/playstore-icon.png",
     "scheme": "nadobeep",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/splash.png",
+      "image": "./assets/images/ios/iTunesArtwork@3x.png",
       "resizeMode": "contain",
       "backgroundColor": "#e74c3c"
     },
@@ -34,12 +34,13 @@
           "critical-alert": true,
           "sound": true
         }
-      }
+      },
+      "icon": "./assets/images/ios/AppIcon.appiconset/ItunesArtwork@2x.png"
     },
     "android": {
-      "versionCode": 5,
+      "versionCode": 6,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/android/mipmap-xxxhdpi/ic_launcher_foreground.png",
         "backgroundColor": "#e74c3c"
       },
       "package": "com.nadobeep.app",
@@ -60,23 +61,26 @@
         "notification": {
           "title": "NadoBeep is active",
           "body": "Monitoring for severe weather alerts",
-          "icon": "./assets/images/notification-icon.png",
+          "icon": "./assets/images/android/mipmap-mdpi/ic_launcher.png",
           "color": "#e74c3c",
           "sticky": true,
           "priority": "high"
         }
       },
       "notification": {
-        "icon": "./assets/notification-icon.png",
+        "icon": "./assets/images/android/mipmap-mdpi/ic_launcher.png",
         "color": "#3498db"
       }
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png",
+      "name": "NadoBeep - Severe Weather Alerts in the US",
+      "shortName": "NadoBeep",
+      "themeColor": "#e74c3c",
+      "favicon": "./assets/images/android/ic_launcher-web.png",
       "notification": {
-        "icon": "./assets/images/notification-icon.png"
+        "icon": "./assets/images/android/mipmap-mdpi/ic_launcher.png"
       },
       "assetBundlePatterns": [
         "assets/sounds/*"
@@ -88,7 +92,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/notification-icon.png",
+          "icon": "./assets/images/android/mipmap-mdpi/ic_launcher.png",
           "color": "#e74c3c",
           "sounds": [
             "./assets/sounds/alarm.mp3"
@@ -112,11 +116,16 @@
       [
         "expo-task-manager",
         {
-          "taskNames": ["background-fetch-alerts", "notification-response-task"],
+          "taskNames": [
+            "background-fetch-alerts",
+            "notification-response-task"
+          ],
           "frequency": 900
         }
       ],
-      ["./plugins/notifee-mod.js"]
+      [
+        "./plugins/notifee-mod.js"
+      ]
     ],
     "experiments": {
       "typedRoutes": true

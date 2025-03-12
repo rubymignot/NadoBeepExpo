@@ -10,3 +10,5 @@ export { default as TestFunctions } from './TestFunctions';
 export { default as DataSourceSection } from './DataSourceSection';
 export { default as PrivacySection } from './PrivacySection';
 export { default as Footer } from './Footer';
+export { default as GovDisclaimer } from './GovDisclaimer';
+export { default as AlertTypeSettings } from './AlertTypeSettings';

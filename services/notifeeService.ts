@@ -187,14 +187,27 @@ export const checkForAlerts = async (): Promise<boolean> => {
       const data = await response.json();
       console.log(`[NotifeeService] Received ${data.features?.length || 0} alerts from NWS API`);
       
+      // Get user's enabled alert types
+      const enabledAlertTypesStr = await AsyncStorage.getItem('enabledAlertTypes');
+      const enabledAlertTypes = enabledAlertTypesStr 
+        ? JSON.parse(enabledAlertTypesStr) 
+        : FILTERED_ALERT_TYPES; // Default to all if not set
+      
+      // Get user's alarm-enabled alert types
+      const alarmEnabledTypesStr = await AsyncStorage.getItem('alarmEnabledAlertTypes');
+      const alarmEnabledTypes = alarmEnabledTypesStr 
+        ? JSON.parse(alarmEnabledTypesStr) 
+        : ['Tornado Warning']; // Default to only tornado warnings for alarm
+      
       // Process alerts
       // Get previously seen alerts
       const seenAlertsString = await AsyncStorage.getItem('seenAlerts');
       const seenAlerts = seenAlertsString ? seenAlertsString.split('|') : [];
       
-      // Filter for important alerts with polygons
+      // Filter for important alerts with polygons that are enabled by the user
       const importantAlerts = (data.features || []).filter((alert: any) => {
-        return FILTERED_ALERT_TYPES.includes(alert.properties.event) && 
+        return enabledAlertTypes.includes(alert.properties.event) && 
+               FILTERED_ALERT_TYPES.includes(alert.properties.event) && 
                alert.geometry && 
                alert.geometry.type === 'Polygon' &&
                !seenAlerts.includes(alert.properties.id);
@@ -215,7 +228,7 @@ export const checkForAlerts = async (): Promise<boolean> => {
           
           if (seenAlerts.includes(id)) continue;
           
-          const isTornadoWarning = event.includes('Tornado');
+          const shouldPlayAlarm = alarmEnabledTypes.includes(event);
           
           // Show notification
           console.log(`[NotifeeService] Sending notification for ${event}: ${id}`);
@@ -223,12 +236,11 @@ export const checkForAlerts = async (): Promise<boolean> => {
             event,
             headline || description?.substring(0, 100) || 'Weather Alert',
             id,
-            isTornadoWarning
+            shouldPlayAlarm
           );
           
-          // Play sound if it's a tornado warning
-          const isSoundEnabled = await AsyncStorage.getItem('isSoundEnabled') === 'true';
-          if (isSoundEnabled && isTornadoWarning) {
+          // Play sound if this alert type has sound enabled (removed global sound check)
+          if (shouldPlayAlarm) {
             const soundVolume = await AsyncStorage.getItem('soundVolume');
             const volume = soundVolume ? parseFloat(soundVolume) : 0.8;
             playAlarmSound(volume).catch(error => {

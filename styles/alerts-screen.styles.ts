@@ -34,10 +34,7 @@ export const createThemedStyles = (colors = LIGHT_COLORS) => StyleSheet.create({
   innerContainer: {
     flex: 1,
     width: '100%',
-    maxWidth:
-      typeof LAYOUT.pageWidth === 'string'
-        ? parseInt(LAYOUT.pageWidth, 10)
-        : LAYOUT.pageWidth,
+    maxWidth: 1200,
     alignSelf: 'center',
   },
   headerGradient: {
@@ -82,10 +79,9 @@ export const createThemedStyles = (colors = LIGHT_COLORS) => StyleSheet.create({
     justifyContent: isMobile ? 'flex-start' : 'flex-start',
   },
   headerLogo: {
-    width: 28, // Slightly smaller logo
-    height: 28,
-    marginRight: isMobile ? 0 : 8, // No margin needed when title is hidden
-    borderRadius: 14,
+    width: 80,
+    height: 80,
+    marginRight: -10
   } as ImageStyle,
   headerTitle: {
     fontSize: 20,

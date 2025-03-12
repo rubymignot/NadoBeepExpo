@@ -14,7 +14,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { SEVERITY_COLORS, EVENT_COLORS } from '@/constants/alerts';
 import { getRelativeTime } from '@/utils/dateUtils';
 
-const APP_ICON = require('../../assets/images/icon.png');
+const APP_ICON = require('../../assets/images/android/mipmap-xxxhdpi/ic_launcher_foreground.png');
 const windowWidth = Dimensions.get('window').width;
 
 // Add this unified import:
@@ -395,9 +395,9 @@ const mapStyles = StyleSheet.create({
     alignItems: 'center',
   },
   headerLogo: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 80,
+    height: 80,
+    marginRight: -10
   },
   headerTitle: {
     color: '#fff',

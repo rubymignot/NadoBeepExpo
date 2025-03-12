@@ -27,7 +27,7 @@ import { useAlerts } from '@/context/AlertsContext';  // Changed from useAlertsC
 import { getRelativeTime } from '@/utils/dateUtils';
 import { enableAudioPlayback, isAudioEnabled, subscribeToAudioState } from '@/services/soundService';
 
-const APP_ICON = require('../../assets/images/icon.png');
+const APP_ICON = require('../../assets/images/android/mipmap-xxxhdpi/ic_launcher_foreground.png');
 const MOBILE_BREAKPOINT = 600; // Width threshold for hiding the title
 
 export default function AlertsScreen() {

@@ -6,13 +6,16 @@ import { startForegroundService, stopForegroundService, checkAlertsNow, isServic
 import { AppState, Platform } from 'react-native';
 // Import web notification functions
 import { requestNotificationPermission, isBrowserNotificationSupported } from '@/services/webNotificationService';
+import { FILTERED_ALERT_TYPES } from '@/constants/alerts';
 
 // Define the initial state
 const initialState = {
   alerts: [],
-  isSoundEnabled: true, // changed from soundEnabled to isSoundEnabled
+  isSoundEnabled: true, // We'll keep this for backward compatibility but won't expose it in UI
   soundVolume: 0.8,
   notificationsEnabled: true,
+  enabledAlertTypes: [] as string[], // Add state for enabled alert types
+  alarmEnabledAlertTypes: [] as string[], // Add state for alarm-enabled alert types
 };
 
 // Define the context type
@@ -22,6 +25,12 @@ type AlertsContextType = {
   toggleSound: () => Promise<boolean>;
   setSoundVolume: (volume: number) => Promise<boolean>;
   toggleNotifications: () => Promise<boolean>;
+  toggleAlertType: (alertType: string) => Promise<boolean>;
+  isAlertTypeEnabled: (alertType: string) => boolean;
+  toggleAllAlertTypes: (enabled: boolean) => Promise<boolean>;
+  toggleAlarmForAlertType: (alertType: string) => Promise<boolean>;
+  isAlarmEnabledForAlertType: (alertType: string) => boolean;
+  toggleAlarmForAllAlertTypes: (enabled: boolean) => Promise<boolean>;
 };
 
 // Reducer for state updates
@@ -35,6 +44,10 @@ const alertsReducer = (state: typeof initialState, action: { type: string; paylo
       return { ...state, soundVolume: action.payload };
     case 'SET_NOTIFICATIONS_ENABLED':
       return { ...state, notificationsEnabled: action.payload };
+    case 'SET_ENABLED_ALERT_TYPES':
+      return { ...state, enabledAlertTypes: action.payload };
+    case 'SET_ALARM_ENABLED_ALERT_TYPES':
+      return { ...state, alarmEnabledAlertTypes: action.payload };
     default:
       return state;
   }
@@ -65,6 +78,29 @@ export const AlertsProvider = ({ children }: { children: ReactNode }) => {
         const notificationsEnabled = await AsyncStorage.getItem('notificationsEnabled');
         if (notificationsEnabled !== null) {
           dispatch({ type: 'SET_NOTIFICATIONS_ENABLED', payload: JSON.parse(notificationsEnabled) });
+        }
+
+        // Load enabled alert types or set defaults
+        const enabledAlertTypes = await AsyncStorage.getItem('enabledAlertTypes');
+        if (enabledAlertTypes !== null) {
+          dispatch({ type: 'SET_ENABLED_ALERT_TYPES', payload: JSON.parse(enabledAlertTypes) });
+        } else {
+          // Default to all alert types enabled
+          dispatch({ type: 'SET_ENABLED_ALERT_TYPES', payload: [...FILTERED_ALERT_TYPES] });
+          await AsyncStorage.setItem('enabledAlertTypes', JSON.stringify(FILTERED_ALERT_TYPES));
+        }
+
+        // Load alarm-enabled alert types or set defaults (only tornado warnings by default)
+        const alarmEnabledAlertTypes = await AsyncStorage.getItem('alarmEnabledAlertTypes');
+        if (alarmEnabledAlertTypes !== null) {
+          dispatch({ type: 'SET_ALARM_ENABLED_ALERT_TYPES', payload: JSON.parse(alarmEnabledAlertTypes) });
+        } else {
+          // Default to only tornado warnings for alarm
+          const defaultAlarmTypes = FILTERED_ALERT_TYPES.filter(type => 
+            type === 'Tornado Warning' || type === 'Test Tornado Warning'
+          );
+          dispatch({ type: 'SET_ALARM_ENABLED_ALERT_TYPES', payload: defaultAlarmTypes });
+          await AsyncStorage.setItem('alarmEnabledAlertTypes', JSON.stringify(defaultAlarmTypes));
         }
       } catch (error) {
         console.error('Error loading settings:', error);
@@ -171,7 +207,7 @@ export const AlertsProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Toggle sound on/off
+  // Toggle sound on/off - keep this function, but we won't expose it in the UI
   const toggleSound = async () => {
     try {
       const newSoundEnabled = !state.isSoundEnabled; // changed from soundEnabled
@@ -252,13 +288,119 @@ export const AlertsProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Check if an alert type is enabled
+  const isAlertTypeEnabled = (alertType: string): boolean => {
+    return state.enabledAlertTypes.includes(alertType);
+  };
+
+  // Toggle an individual alert type
+  const toggleAlertType = async (alertType: string): Promise<boolean> => {
+    try {
+      const updatedEnabledTypes = [...state.enabledAlertTypes];
+      
+      if (updatedEnabledTypes.includes(alertType)) {
+        // Remove the alert type
+        const index = updatedEnabledTypes.indexOf(alertType);
+        updatedEnabledTypes.splice(index, 1);
+      } else {
+        // Add the alert type
+        updatedEnabledTypes.push(alertType);
+      }
+      
+      // Update state
+      dispatch({ type: 'SET_ENABLED_ALERT_TYPES', payload: updatedEnabledTypes });
+      
+      // Save to storage
+      await AsyncStorage.setItem('enabledAlertTypes', JSON.stringify(updatedEnabledTypes));
+      
+      return true;
+    } catch (error) {
+      console.error('[AlertsContext] Error toggling alert type:', error);
+      return false;
+    }
+  };
+
+  // Toggle all alert types at once
+  const toggleAllAlertTypes = async (enabled: boolean): Promise<boolean> => {
+    try {
+      const updatedEnabledTypes = enabled ? [...FILTERED_ALERT_TYPES] : [];
+      
+      // Update state
+      dispatch({ type: 'SET_ENABLED_ALERT_TYPES', payload: updatedEnabledTypes });
+      
+      // Save to storage
+      await AsyncStorage.setItem('enabledAlertTypes', JSON.stringify(updatedEnabledTypes));
+      
+      return true;
+    } catch (error) {
+      console.error('[AlertsContext] Error toggling all alert types:', error);
+      return false;
+    }
+  };
+
+  // Check if an alert type should trigger an alarm
+  const isAlarmEnabledForAlertType = (alertType: string): boolean => {
+    return state.alarmEnabledAlertTypes.includes(alertType);
+  };
+
+  // Toggle alarm for an individual alert type
+  const toggleAlarmForAlertType = async (alertType: string): Promise<boolean> => {
+    try {
+      const updatedAlarmEnabledTypes = [...state.alarmEnabledAlertTypes];
+      
+      if (updatedAlarmEnabledTypes.includes(alertType)) {
+        // Remove the alert type
+        const index = updatedAlarmEnabledTypes.indexOf(alertType);
+        updatedAlarmEnabledTypes.splice(index, 1);
+      } else {
+        // Add the alert type
+        updatedAlarmEnabledTypes.push(alertType);
+      }
+      
+      // Update state
+      dispatch({ type: 'SET_ALARM_ENABLED_ALERT_TYPES', payload: updatedAlarmEnabledTypes });
+      
+      // Save to storage
+      await AsyncStorage.setItem('alarmEnabledAlertTypes', JSON.stringify(updatedAlarmEnabledTypes));
+      
+      return true;
+    } catch (error) {
+      console.error('[AlertsContext] Error toggling alarm for alert type:', error);
+      return false;
+    }
+  };
+
+  // Toggle alarm for all alert types at once
+  const toggleAlarmForAllAlertTypes = async (enabled: boolean): Promise<boolean> => {
+    try {
+      const updatedAlarmEnabledTypes = enabled ? [...FILTERED_ALERT_TYPES] : [];
+      
+      // Update state
+      dispatch({ type: 'SET_ALARM_ENABLED_ALERT_TYPES', payload: updatedAlarmEnabledTypes });
+      
+      // Save to storage
+      await AsyncStorage.setItem('alarmEnabledAlertTypes', JSON.stringify(updatedAlarmEnabledTypes));
+      
+      return true;
+    } catch (error) {
+      console.error('[AlertsContext] Error toggling alarm for all alert types:', error);
+      return false;
+    }
+  };
+
   return (
     <AlertsContext.Provider value={{ 
       state, 
       dispatch, 
       toggleSound, 
       setSoundVolume, 
-      toggleNotifications
+      toggleNotifications,
+      toggleAlertType,
+      isAlertTypeEnabled,
+      toggleAllAlertTypes,
+      toggleAlarmForAlertType,
+      isAlarmEnabledForAlertType,
+      toggleAlarmForAllAlertTypes
     }}>
       {children}
     </AlertsContext.Provider>

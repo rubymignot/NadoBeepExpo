@@ -3,7 +3,7 @@ import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { FONTS } from '@/constants/theme';
 
-const APP_ICON = require('../../assets/images/icon.png');
+const APP_ICON = require('../../assets/images/android/mipmap-xxxhdpi/ic_launcher_foreground.png');
 
 export function LoadingState() {
   const { colors } = useTheme();
@@ -17,7 +17,7 @@ export function LoadingState() {
       />
       <ActivityIndicator size="large" color={colors.primary} />
       <Text style={[styles.loadingText, { color: colors.text.secondary }]}>
-        Loading alerts...
+        Loading...
       </Text>
     </View>
   );

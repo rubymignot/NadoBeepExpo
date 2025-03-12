@@ -1,8 +1,7 @@
-import { StyleSheet, Text, View, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
-import { COLORS } from '@/constants/theme';
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { TouchableOpacity } from 'react-native';
@@ -31,7 +30,7 @@ export default function PrivacyPolicyScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.section}>
-          <Text style={styles.lastUpdated}>Last updated: {new Date().toLocaleDateString()}</Text>
+          <Text style={styles.lastUpdated}>Last updated: March 12, 2025</Text>
 
           <Text style={styles.introduction}>
             NadoBeep is committed to protecting your privacy. This Privacy Policy explains how we handle 
@@ -107,13 +106,32 @@ export default function PrivacyPolicyScreen() {
           </Text>
 
           <Text style={styles.sectionTitle}>Contact Us</Text>
-          <Text style={styles.paragraph}>
+            <Text style={styles.paragraph}>
             If you have any questions about this Privacy Policy, please contact us on social media.
             {'\n'}
-            GitHub: https://github.com/rubynouille/NadoBeepExpo
+            GitHub: <Text 
+              style={styles.link}
+              onPress={() => Linking.openURL('https://github.com/rubynouille/NadoBeepExpo')}
+            >
+              https://github.com/rubynouille/NadoBeepExpo
+            </Text>
             {'\n'}
-            Twitter: https://twitter.com/rubynouille
+            Twitter: <Text
+              style={styles.link}
+              onPress={() => Linking.openURL('https://twitter.com/rubynouille')}
+            >
+              https://twitter.com/rubynouille
+            </Text>
+            </Text>
+
+            <Text style={styles.sectionTitle}>---</Text>
+
+          <Text style={styles.sectionTitle}>Independant Application Notice</Text>
+          <Text style={styles.paragraph}>
+            NadoBeep is not affiliated with, endorsed by, or an official product of any government agency. 
+            This app relays public data from official sources but is independently developed.
           </Text>
+
         </View>
       </ScrollView>
     </SafeAreaView>

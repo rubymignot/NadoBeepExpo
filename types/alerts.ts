@@ -39,6 +39,7 @@ export interface AlertProperties {
   certainty: string;
   instruction: string | null;
   description: string;
+  onset: string | null;
 }
 
 export interface AlertGeometry {

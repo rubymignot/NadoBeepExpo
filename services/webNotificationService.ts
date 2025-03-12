@@ -65,7 +65,7 @@ export const showWebNotification = async (
   title: string,
   body: string,
   id: string,
-  isTornadoWarning: boolean = false
+  shouldPlaySound: boolean = false
 ): Promise<boolean> => {
   if (!isBrowserNotificationSupported()) {
     return false;
@@ -91,8 +91,8 @@ export const showWebNotification = async (
       body,
       icon: '/icon-192.png', // Update path if needed
       tag: id,
-      requireInteraction: isTornadoWarning, // Keep tornado warnings until dismissed
-      vibrate: isTornadoWarning ? [200, 100, 200, 100, 200, 100, 200] : [100, 50, 100],
+      requireInteraction: shouldPlaySound, // Keep tornado warnings until dismissed
+      vibrate: shouldPlaySound ? [200, 100, 200, 100, 200, 100, 200] : [100, 50, 100],
       badge: '/icon-72.png', // Update path if needed
       renotify: true // Override notifications with the same tag
     };
@@ -106,21 +106,18 @@ export const showWebNotification = async (
       notification.close();
     };
     
-    // Play sound if it's a tornado warning
-    if (isTornadoWarning) {
-      const isSoundEnabled = await AsyncStorage.getItem('isSoundEnabled') === 'true';
-      if (isSoundEnabled) {
-        const soundVolume = await AsyncStorage.getItem('soundVolume');
-        const volume = soundVolume ? parseFloat(soundVolume) : 0.8;
-        
-        // Enable sound playback (needed for some browsers)
-        enableAudioPlayback();
-        
-        // Play the alarm sound
-        playAlarmSound(volume).catch(error => {
-          console.error('[WebNotification] Failed to play alarm sound:', error);
-        });
-      }
+    // Play sound if this alert type has sound enabled (removed global sound check)
+    if (shouldPlaySound) {
+      const soundVolume = await AsyncStorage.getItem('soundVolume');
+      const volume = soundVolume ? parseFloat(soundVolume) : 0.8;
+      
+      // Enable sound playback (needed for some browsers)
+      enableAudioPlayback();
+      
+      // Play the alarm sound
+      playAlarmSound(volume).catch(error => {
+        console.error('[WebNotification] Failed to play alarm sound:', error);
+      });
     }
     
     // Log notification time for diagnostics
@@ -165,14 +162,27 @@ export const checkForWebAlerts = async (): Promise<boolean> => {
       const data = await response.json();
       console.log(`[WebNotification] Received ${data.features?.length || 0} alerts from NWS API`);
       
+      // Get user's enabled alert types
+      const enabledAlertTypesStr = await AsyncStorage.getItem('enabledAlertTypes');
+      const enabledAlertTypes = enabledAlertTypesStr 
+        ? JSON.parse(enabledAlertTypesStr) 
+        : FILTERED_ALERT_TYPES; // Default to all if not set
+      
+      // Get user's alarm-enabled alert types
+      const alarmEnabledTypesStr = await AsyncStorage.getItem('alarmEnabledAlertTypes');
+      const alarmEnabledTypes = alarmEnabledTypesStr 
+        ? JSON.parse(alarmEnabledTypesStr) 
+        : ['Tornado Warning']; // Default to only tornado warnings for alarm
+      
       // Process alerts
       // Get previously seen alerts
       const seenAlertsString = await AsyncStorage.getItem('seenAlerts');
       const seenAlerts = seenAlertsString ? seenAlertsString.split('|') : [];
       
-      // Filter for important alerts with polygons
+      // Filter for important alerts with polygons that are enabled by the user
       const importantAlerts = (data.features || []).filter((alert: any) => {
-        return FILTERED_ALERT_TYPES.includes(alert.properties.event) && 
+        return enabledAlertTypes.includes(alert.properties.event) && 
+               FILTERED_ALERT_TYPES.includes(alert.properties.event) && 
                alert.geometry && 
                alert.geometry.type === 'Polygon' &&
                !seenAlerts.includes(alert.properties.id);
@@ -193,7 +203,7 @@ export const checkForWebAlerts = async (): Promise<boolean> => {
           
           if (seenAlerts.includes(id)) continue;
           
-          const isTornadoWarning = event.includes('Tornado');
+          const shouldPlaySound = alarmEnabledTypes.includes(event);
           
           // Show notification
           console.log(`[WebNotification] Sending notification for ${event}: ${id}`);
@@ -201,7 +211,7 @@ export const checkForWebAlerts = async (): Promise<boolean> => {
             event,
             headline || description?.substring(0, 100) || 'Weather Alert',
             id,
-            isTornadoWarning
+            shouldPlaySound
           );
           
           updatedSeenAlerts.push(id);

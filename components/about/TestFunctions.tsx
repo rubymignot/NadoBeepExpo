@@ -39,13 +39,13 @@ const TestFunctions = ({ isDarkMode, testingSound, testTornadoWarning }: TestFun
         ) : (
           <>
             <Bug size={18} color="#fff" style={styles.testButtonIcon} />
-            <Text style={styles.testButtonText}>Test Tornado Warning</Text>
+            <Text style={styles.testButtonText}>Test Sound Alert Warning</Text>
           </>
         )}
       </TouchableOpacity>
       <Text style={styles.testDescription}>
-        This will play the tornado warning sound for 5 seconds and show a
-        test notification.
+        This will play the warning sound for 5 seconds and show a
+        Tornado Warning test notification.
       </Text>
     </View>
   );
