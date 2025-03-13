@@ -307,28 +307,35 @@ export const leafletMapHtml = `
     
     // Remove all previous radar refresh interval and refresh functions
     // Start a simple radar refresh interval similar to Android's logic
-    setInterval(function() {
-      if (map.hasLayer(radarLayer)) {
-        const newTimestamp = new Date().getTime();
-        const newUrl = "https://opengeo.ncep.noaa.gov/geoserver/conus/conus_bref_qcd/ows?_ts=" + newTimestamp;
-        // Remove the existing radar layer
-        // Recreate the radar layer with the updated URL
-        radarLayer = L.tileLayer.wms(newUrl, {
-          layers: 'conus_bref_qcd',
-          format: 'image/png',
-          transparent: true,
-          opacity: 0.7,
-          version: '1.3.0',
-          attribution: '© NOAA',
-          zIndex: 50,
-          updateWhenIdle: false,
-          updateInterval: 200,
-          crossOrigin: true
-        });
-        radarLayer.addTo(map);
-        map.removeLayer(radarLayer);
-      }
-    }, 5000);
+// Start a simple radar refresh interval similar to Android's logic
+setInterval(function() {
+  if (map.hasLayer(radarLayer)) {
+    const newTimestamp = new Date().getTime();
+    // Create new URL with timestamp to prevent caching
+    const newUrl = "https://opengeo.ncep.noaa.gov/geoserver/conus/conus_bref_qcd/ows?_ts=" + newTimestamp;
+    
+    // Remove the existing radar layer
+    map.removeLayer(radarLayer);
+    
+    // Create a fresh radar layer with the updated URL
+    radarLayer = L.tileLayer.wms(newUrl, {
+      layers: 'conus_bref_qcd',
+      format: 'image/png',
+      transparent: true,
+      opacity: 0.7,
+      version: '1.3.0',
+      attribution: '© NOAA',
+      zIndex: 50,
+      updateWhenIdle: false,
+      updateInterval: 200,
+      crossOrigin: true
+    });
+    
+    // Add the fresh layer to the map
+    radarLayer.addTo(map);
+  }
+}, 60000); // 60 seconds
+
     
     // Initialize alerts data
     let alertsData = [];
@@ -537,7 +544,6 @@ export const leafletMapHtml = `
             if (shouldShow && !map.hasLayer(radarLayer)) {
               radarLayer.addTo(map);
               document.getElementById('radar-legend').style.display = 'block';
-              // Removed call to startRadarRefresh() to mimic Android's simple refresh logic.
             } else if (!shouldShow && map.hasLayer(radarLayer)) {
               map.removeLayer(radarLayer);
               document.getElementById('radar-legend').style.display = 'none';

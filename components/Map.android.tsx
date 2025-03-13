@@ -257,7 +257,7 @@ const NativeAlertMap = React.forwardRef<any, NativeAlertMapProps>(({
             layer: updatedRadarLayer
           });
         }
-      }, 5000);
+      }, 60000);
     };
     
     if (mapReady) {

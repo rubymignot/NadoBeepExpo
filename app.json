@@ -2,7 +2,7 @@
   "expo": {
     "name": "NadoBeep",
     "slug": "nadobeep",
-    "version": "1.5.0b",
+    "version": "1.5.1b",
     "orientation": "portrait",
     "icon": "./assets/images/android/playstore-icon.png",
     "scheme": "nadobeep",
