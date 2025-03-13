@@ -18,13 +18,17 @@ const AppHeader = ({ version, isDarkMode }: AppHeaderProps) => {
   
   return (
     <TouchableOpacity onPress={() => router.push('/(tabs)/about')}>
-    <View style={[styles.appInfo]}>
+    <View style={{
+        ...styles.appInfo,
+        marginTop: 20,
+        marginBottom: 20 }}>
       <Image
       source={APP_ICON}
       style={[styles.appIcon, { 
         backgroundColor: '#e74c3c', 
         borderRadius: 10, 
-        marginVertical: Platform.OS === 'web' ? 20 : 40 
+        marginTop: 20,
+        marginBottom: 20 
       }]}
       resizeMode="contain"
       />

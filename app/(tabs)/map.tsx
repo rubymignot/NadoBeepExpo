@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+// Remove ZoomIn and ZoomOut from import
 import { View, Text, Platform, ActivityIndicator, Image, TouchableOpacity, Dimensions, StyleSheet, StatusBar } from 'react-native';
-import { useRouter } from 'expo-router';
-import { AlertTriangle, RefreshCw, X, ExternalLink, MapPin, Layers, ZoomIn, ZoomOut } from 'lucide-react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { AlertTriangle, RefreshCw, X, ExternalLink, MapPin, Layers, CloudRain } from 'lucide-react-native';
 
 // Import types
 import { Alert } from '@/types/alerts';
@@ -24,6 +25,8 @@ export default function MapScreen() {
   const router = useRouter();
   const { isDarkMode, colors } = useTheme();
   const isWeb = Platform.OS === 'web';
+  // Get URL parameters
+  const { alert: focusAlertId, zoom: shouldZoom } = useLocalSearchParams();
 
   // Initial map settings
   const initialCenter = { lat: 39.8283, lng: -98.5795 }; // US center
@@ -37,7 +40,13 @@ export default function MapScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showLayerControl, setShowLayerControl] = useState(false);
   const [mapLayer, setMapLayer] = useState('standard');
-  const [currentZoom, setCurrentZoom] = useState(initialZoom);
+  // Remove currentZoom state that was used for custom zoom controls
+  // const [currentZoom, setCurrentZoom] = useState(initialZoom);
+  // Add state for radar visibility
+  const [radarVisible, setRadarVisible] = useState(true);
+
+  // Create a ref for the map component
+  const mapRef = React.useRef<any>(null);
 
   // Load alerts when component mounts
   const loadAlerts = async (showRefreshing = false) => {
@@ -51,6 +60,8 @@ export default function MapScreen() {
       setAlerts(alertsData);
       setLastUpdate(new Date());
       setError(null);
+      
+      // We'll let the useEffect handle the focus instead of calling a separate function
     } catch (err) {
       console.error('Error fetching alerts:', err);
       setError('Failed to load alerts. Please try again later.');
@@ -59,7 +70,8 @@ export default function MapScreen() {
       setRefreshing(false);
     }
   };
-
+  
+  // Initial load and refresh timer
   useEffect(() => {
     loadAlerts();
     
@@ -77,12 +89,56 @@ export default function MapScreen() {
 
     return () => clearInterval(intervalId);
   }, []);
+  
+  // Clean reset function for when navigating away and back
+  useEffect(() => {
+    // Reset state when coming back to the map screen
+    return () => {
+      setSelectedAlert(null);
+    };
+  }, []);
 
+  // Effect to handle URL parameter changes
+  useEffect(() => {
+    // Only process when alerts are loaded and we have a focusAlertId
+    if (alerts.length > 0 && focusAlertId && typeof focusAlertId === 'string') {
+      // Avoid re-selecting the same alert if it's already selected
+      if (!selectedAlert || selectedAlert.properties.id !== focusAlertId) {
+        const alertToFocus = alerts.find(a => a.properties.id === focusAlertId);
+        if (alertToFocus) {
+          setSelectedAlert(alertToFocus);
+          if (mapRef.current) {
+            setTimeout(() => {
+              // Check if zoom parameter was provided and is "true"
+              const shouldZoomToAlert = shouldZoom === "true" || shouldZoom === "1";
+              console.log(`Highlighting alert ${focusAlertId}, zoom: ${shouldZoomToAlert}`);
+              
+              // Explicitly set as boolean true/false for Android compatibility
+              mapRef.current.postMessage(JSON.stringify({
+                type: 'HIGHLIGHT_ALERT',
+                alertId: focusAlertId,
+                urlNavigation: shouldZoomToAlert ? true : false,
+                platform: Platform.OS // Add platform info to help debugging
+              }));
+            }, 500); // Reduced delay for better responsiveness
+          }
+        }
+      }
+    } else if (!focusAlertId && selectedAlert) {
+      // Clear selection when URL param is removed
+      setSelectedAlert(null);
+    }
+  }, [focusAlertId, shouldZoom, alerts, selectedAlert]);
+  
   // Handle alert selection from the map
   const handleAlertSelected = (alert: Alert | null) => {
     setSelectedAlert(alert);
+    
+    // Update URL if an alert was selected (not for clearing)
     if (alert) {
-      console.log('Selected alert:', alert.properties.headline);
+      router.setParams({ alert: alert.properties.id, zoom: 'false' });
+    } else if (focusAlertId) {
+      router.replace('/map');
     }
   };
 
@@ -101,9 +157,9 @@ export default function MapScreen() {
     setMapLayer(layer);
     setShowLayerControl(false);
     
-    // Send message to map components
-    if (isWeb && webMapRef.current) {
-      webMapRef.current.postMessage(JSON.stringify({
+    // Send message to map components - use mapRef instead of webMapRef
+    if (mapRef.current) {
+      mapRef.current.postMessage(JSON.stringify({
         type: 'CHANGE_LAYER',
         layer: layer
       }));
@@ -120,10 +176,19 @@ export default function MapScreen() {
     }
   };
 
-  // Close popup
-  const handleClosePopup = () => {
+  // Close popup and clear URL - improved to prevent refresh loops
+  const handleClosePopup = useCallback(() => {
+    // First check if we actually need to do anything
+    if (!selectedAlert) return;
+    
+    // Clear the selected alert state
     setSelectedAlert(null);
-  };
+    
+    // Clear the URL parameter if needed
+    if (focusAlertId) {
+      router.replace('/map');
+    }
+  }, [focusAlertId, router, selectedAlert]);
 
   // Get severity color
   const getSeverityColor = (severity: string) => {
@@ -139,27 +204,30 @@ export default function MapScreen() {
   // Create a ref only for WebView, not for native
   const webMapRef = React.useRef<any>(null);
 
-  // Add custom zoom controls that work for both platforms
-  const handleZoomIn = () => {
-    if (Platform.OS === 'web' && webMapRef.current) {
-      webMapRef.current.postMessage(JSON.stringify({
-        type: 'ZOOM_IN'
-      }));
-    } else {
-      // For native, we'll just update the state and let the component re-render
-      setCurrentZoom(prev => Math.min(prev + 1, 18)); // Max zoom 18
-    }
-  };
+  // Add toggle radar function
+  const toggleRadar = useCallback(() => {
+    // Toggle the radar state
+    setRadarVisible(prev => {
+      const newValue = !prev;
+      console.log("Toggling radar to:", newValue);
+      
+      // Send message to map component
+      if (mapRef.current) {
+        console.log("Sending TOGGLE_RADAR message to map component");
+        mapRef.current.postMessage(JSON.stringify({
+          type: 'TOGGLE_RADAR',
+          visible: newValue
+        }));
+      }
+      
+      return newValue;
+    });
+  }, []);
 
-  const handleZoomOut = () => {
-    if (Platform.OS === 'web' && webMapRef.current) {
-      webMapRef.current.postMessage(JSON.stringify({
-        type: 'ZOOM_OUT'
-      }));
-    } else {
-      // For native, we'll just update the state and let the component re-render
-      setCurrentZoom(prev => Math.max(prev - 1, 3)); // Min zoom 3
-    }
+  // This function can be used elsewhere in your app to create links to the map
+  // with specific alerts and zoom behavior
+  const createMapLink = (alertId: string, shouldZoom: boolean = false) => {
+    return `/map?alert=${alertId}${shouldZoom ? '&zoom=true' : ''}`;
   };
 
   return (
@@ -171,12 +239,54 @@ export default function MapScreen() {
         translucent={true} 
       />
       
-      {/* Map View takes full screen */}
+      {/* Blue header with controls - FIXED HEIGHT */}
+      <View style={mapStyles.header}>
+        <View style={mapStyles.headerLeft}>
+          <Image
+            source={APP_ICON}
+            style={mapStyles.headerLogo}
+            defaultSource={APP_ICON}
+          />
+          <Text style={mapStyles.headerTitle}>Map</Text>
+        </View>
+        
+        <View style={mapStyles.headerRight}>
+          {/* Add Radar Toggle Button */}
+          <TouchableOpacity 
+            style={[mapStyles.iconButton, radarVisible && mapStyles.activeIconButton]} 
+            onPress={toggleRadar}
+            disabled={loading}
+          >
+            <CloudRain size={20} color="#fff" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[mapStyles.iconButton, refreshing && mapStyles.refreshingButton]} 
+            onPress={handleRefresh}
+            disabled={refreshing || loading}
+          >
+            <RefreshCw 
+              size={20} 
+              color="#fff" 
+              style={refreshing ? mapStyles.spinningIcon : undefined}
+            />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={mapStyles.iconButton}
+            onPress={toggleLayerControl}
+          >
+            <Layers size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </View>
+      
+      {/* Map View in its own container below the fixed header */}
       <View style={mapStyles.mapContainer}>
         {loading && !refreshing ? (
           <View style={mapStyles.centeredContainer}>
             <ActivityIndicator size="large" color="#2980b9" />
-            <Text style={mapStyles.loadingText}>Loading alerts...</Text>
+            <Text style={mapStyles.loadingText}>Loading map...</Text>
           </View>
         ) : error ? (
           <View style={mapStyles.centeredContainer}>
@@ -190,109 +300,48 @@ export default function MapScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          // Map component fills entire container
+          // Map component fills entire container without position:absolute
           <View style={mapStyles.fullSize}>
             <MapComponent
-              ref={webMapRef}
+              ref={mapRef}
               alerts={alerts}
               onAlertSelected={handleAlertSelected}
               initialCenter={initialCenter}
-              initialZoom={currentZoom}
+              initialZoom={Platform.OS === 'android' ? undefined : initialZoom} 
               mapLayer={mapLayer}
             />
           </View>
         )}
-        
-        {/* Blue header with controls - FIXED HEIGHT */}
-        <View style={mapStyles.floatingHeader}>
-          <View style={mapStyles.headerLeft}>
-            <Image
-              source={APP_ICON}
-              style={mapStyles.headerLogo}
-              defaultSource={APP_ICON}
-            />
-            <Text style={mapStyles.headerTitle}>Alert Map</Text>
-          </View>
-          
-          <View style={mapStyles.headerRight}>
-            <TouchableOpacity 
-              style={[mapStyles.iconButton, refreshing && mapStyles.refreshingButton]} 
-              onPress={handleRefresh}
-              disabled={refreshing || loading}
-            >
-              <RefreshCw 
-                size={20} 
-                color="#fff" 
-                style={refreshing ? mapStyles.spinningIcon : undefined}
-              />
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={mapStyles.iconButton}
-              onPress={toggleLayerControl}
-            >
-              <Layers size={20} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        </View>
-        
-        {/* Custom zoom controls - UPDATED POSITION */}
-        {!loading && !error && (
-          <View style={mapStyles.zoomControls}>
-            <TouchableOpacity 
-              style={mapStyles.zoomButton} 
-              onPress={handleZoomIn}
-            >
-              <ZoomIn size={20} color="#2980b9" />
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={mapStyles.zoomButton} 
-              onPress={handleZoomOut}
-            >
-              <ZoomOut size={20} color="#2980b9" />
-            </TouchableOpacity>
-          </View>
-        )}
-        
-        {/* Layer selection dropdown */}
-        {showLayerControl && (
-          <View style={mapStyles.layerDropdown}>
-            <TouchableOpacity 
-              style={[mapStyles.layerOption, mapLayer === 'standard' && mapStyles.activeLayer]} 
-              onPress={() => changeMapLayer('standard')}
-            >
-              <Text style={mapStyles.layerText}>Standard</Text>
-              {mapLayer === 'standard' && <View style={mapStyles.activeDot} />}
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[mapStyles.layerOption, mapLayer === 'satellite' && mapStyles.activeLayer]} 
-              onPress={() => changeMapLayer('satellite')}
-            >
-              <Text style={mapStyles.layerText}>Satellite</Text>
-              {mapLayer === 'satellite' && <View style={mapStyles.activeDot} />}
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[mapStyles.layerOption, mapLayer === 'dark' && mapStyles.activeLayer]} 
-              onPress={() => changeMapLayer('dark')}
-            >
-              <Text style={mapStyles.layerText}>Dark Mode</Text>
-              {mapLayer === 'dark' && <View style={mapStyles.activeDot} />}
-            </TouchableOpacity>
-          </View>
-        )}
-        
-        {/* Last update indicator */}
-        {lastUpdate && !loading && (
-          <View style={mapStyles.updateInfoContainer}>
-            <Text style={mapStyles.updateInfoText}>
-              Last updated {lastUpdate.toLocaleTimeString()}
-            </Text>
-          </View>
-        )}
       </View>
+      
+      {/* Layer selection dropdown */}
+      {showLayerControl && (
+        <View style={mapStyles.layerDropdown}>
+          <TouchableOpacity 
+            style={[mapStyles.layerOption, mapLayer === 'standard' && mapStyles.activeLayer]} 
+            onPress={() => changeMapLayer('standard')}
+          >
+            <Text style={mapStyles.layerText}>Standard</Text>
+            {mapLayer === 'standard' && <View style={mapStyles.activeDot} />}
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[mapStyles.layerOption, mapLayer === 'satellite' && mapStyles.activeLayer]} 
+            onPress={() => changeMapLayer('satellite')}
+          >
+            <Text style={mapStyles.layerText}>Satellite</Text>
+            {mapLayer === 'satellite' && <View style={mapStyles.activeDot} />}
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[mapStyles.layerOption, mapLayer === 'dark' && mapStyles.activeLayer]} 
+            onPress={() => changeMapLayer('dark')}
+          >
+            <Text style={mapStyles.layerText}>Dark Mode</Text>
+            {mapLayer === 'dark' && <View style={mapStyles.activeDot} />}
+          </TouchableOpacity>
+        </View>
+      )}
       
       {/* Small popup that appears on alert selection */}
       {selectedAlert && (
@@ -308,6 +357,7 @@ export default function MapScreen() {
               <TouchableOpacity 
                 style={mapStyles.closeButton} 
                 onPress={handleClosePopup}
+                hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }} // Increase touch area
               >
                 <X size={16} color="#fff" />
               </TouchableOpacity>
@@ -325,14 +375,6 @@ export default function MapScreen() {
                 </Text>
               </View>
               
-              <View style={[
-                mapStyles.severityBadge,
-                {backgroundColor: getSeverityColor(selectedAlert.properties.severity)}
-              ]}>
-                <Text style={mapStyles.severityText}>
-                  {selectedAlert.properties.severity}
-                </Text>
-              </View>
               
               <View style={mapStyles.timeRow}>
                 <Text style={mapStyles.timeLabel}>Issued:</Text>
@@ -342,7 +384,10 @@ export default function MapScreen() {
               </View>
               
               <TouchableOpacity 
-                style={mapStyles.detailsButton}
+                style={[
+                  mapStyles.detailsButton, 
+                  {backgroundColor: getEventColor(selectedAlert.properties.event)}
+                ]}
                 onPress={handleViewDetails}
               >
                 <Text style={mapStyles.detailsButtonText}>View Details</Text>
@@ -362,30 +407,26 @@ const mapStyles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  mapContainer: {
-    flex: 1,
-    position: 'relative',
-  },
-  fullSize: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
-  floatingHeader: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+  // Updated header style - NOT floating/absolute positioned
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: Platform.OS === 'ios' ? 50 : Platform.OS === 'android' ? 50 : 20,
     paddingHorizontal: 16,
     paddingBottom: 10,
-    backgroundColor: '#2980b9', // Fixed blue color for header
-    height: Platform.OS === 'ios' ? 100 : Platform.OS === 'android' ? 100 : 70, // Fixed height for header
-    zIndex: 100, // Higher z-index to ensure it's above map controls
+    backgroundColor: '#2980b9', 
+    height: Platform.OS === 'ios' ? 100 : Platform.OS === 'android' ? 100 : 70,
   },
+  // Map container positioned below header, not overlapped
+  mapContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  fullSize: {
+    flex: 1,
+  },
+  // Remove floatingHeader style, which was causing overlap problems
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -422,31 +463,13 @@ const mapStyles = StyleSheet.create({
     opacity: 0.8,
     transform: [{ rotate: '45deg' }],
   },
-  // Add custom zoom controls that won't be covered by header
-  zoomControls: {
-    position: 'absolute',
-    left: 16,
-    top: Platform.OS === 'ios' ? 110 : Platform.OS === 'android' ? 110 : 80, // Position below header
-    zIndex: 50, // Lower than layer dropdown but above map
-  },
-  zoomButton: {
-    width: 40,
-    height: 40,
-    backgroundColor: 'white',
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
-    marginBottom: 8,
-  },
+  // Remove zoom control styles
+  // zoomControls: { ... },
+  // zoomButton: { ... },
   // Layer dropdown menu
   layerDropdown: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 110 : Platform.OS === 'android' ? 95 : 80, // Position below header
+    top: 10, // Position from the top of the map container
     right: 16,
     backgroundColor: 'white',
     borderRadius: 8,
@@ -455,7 +478,7 @@ const mapStyles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 3,
     elevation: 5,
-    zIndex: 101, // Above map but below header
+    zIndex: 101,
     overflow: 'hidden',
     width: 150,
   },
@@ -512,8 +535,8 @@ const mapStyles = StyleSheet.create({
   // UPDATED: Better positioned and styled update info container
   updateInfoContainer: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 110 : Platform.OS === 'android' ? 110 : 80, // Position below header
-    right: 16, // Move to right side
+    top: 10, // Position from the top of the map container
+    left: 16, // Use left position instead of right
     backgroundColor: 'rgba(0, 0, 0, 0.65)', // Darker background for better contrast
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -640,5 +663,11 @@ const mapStyles = StyleSheet.create({
   },
   detailsIcon: {
     marginLeft: 2,
+  },
+  // Add style for active icon button
+  activeIconButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.5)', // More visible background
+    borderWidth: 1,
+    borderColor: '#ffffff',
   },
 });

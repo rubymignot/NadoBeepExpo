@@ -2,7 +2,7 @@
   "expo": {
     "name": "NadoBeep",
     "slug": "nadobeep",
-    "version": "1.4.0a",
+    "version": "1.5.0b",
     "orientation": "portrait",
     "icon": "./assets/images/android/playstore-icon.png",
     "scheme": "nadobeep",
@@ -38,7 +38,7 @@
       "icon": "./assets/images/ios/AppIcon.appiconset/ItunesArtwork@2x.png"
     },
     "android": {
-      "versionCode": 6,
+      "versionCode": 7,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/android/mipmap-xxxhdpi/ic_launcher_foreground.png",
         "backgroundColor": "#e74c3c"

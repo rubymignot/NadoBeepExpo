@@ -14,8 +14,6 @@ import { useRouter } from 'expo-router';
 import { Volume2, VolumeX, Bell, BellOff, AlertTriangle, CheckCircle } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import notifee, { AuthorizationStatus } from '@notifee/react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { AlertItem } from '../../components/AlertList/AlertItem';
 import { Alert } from '../../types/alerts';
@@ -44,12 +42,6 @@ export default function AlertsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-
-  // Get context
-  const { 
-    state: { notificationsEnabled },
-    toggleNotifications 
-  } = useAlerts();
 
   // Setup audio state subscription
   useEffect(() => {

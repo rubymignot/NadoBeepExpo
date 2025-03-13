@@ -406,36 +406,10 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar style={isDarkMode ? 'light' : 'dark'} />
-      <View
-        style={{
-          position: 'absolute',
-          top: 32,
-          left: 16,
-          zIndex: 10,
-        }}
-      >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{
-            padding: 8,
-            backgroundColor: isDarkMode
-              ? 'rgba(30,30,30,0.7)'
-              : 'rgba(240,240,240,0.7)',
-            borderRadius: 20,
-            flexDirection: 'row',
-            alignItems: 'center',
-          }}
-        >
-          <ArrowLeft size={18} color={colors.primary} />
-          <Text style={{ marginLeft: 4, color: colors.text.primary }}>
-            Back
-          </Text>
-        </TouchableOpacity>
-      </View>
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16, paddingBottom: isWeb ? 80 : 16, paddingTop: isWeb ? 40 : 8 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: isWeb ? 140 : 16, paddingTop: isWeb ? 40 : 8 }}
         showsVerticalScrollIndicator={false}
       >
         <AppHeader version={VERSION} isDarkMode={isDarkMode} />

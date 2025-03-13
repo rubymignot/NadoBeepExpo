@@ -16,12 +16,14 @@ import {
   CloudRain,
   CloudSnow,
   CloudFog,
+  MapPin,
 } from 'lucide-react-native';
 import { Alert, AlertSeverity } from '@/types/alerts';
 import { EVENT_COLORS, SEVERITY_COLORS } from '@/constants/alerts';
 import { getRelativeTime } from '@/utils/dateUtils';
 import { FONTS } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
+import { useRouter } from 'expo-router';
 
 interface Props {
   alert: Alert;
@@ -31,6 +33,7 @@ interface Props {
 export const AlertItem: React.FC<Props> = ({ alert, onPress }) => {
   const { isDarkMode, colors } = useTheme();
   const { properties } = alert;
+  const router = useRouter();
 
   // Process alert data with useMemo to avoid recalculations on re-renders
   const alertData = useMemo(() => {
@@ -67,10 +70,18 @@ export const AlertItem: React.FC<Props> = ({ alert, onPress }) => {
       timeLeft,
     };
   }, [properties]);
+  
+  // Handle navigation to map view
+  const handleMapView = () => {
+    router.push({
+      pathname: '/map',
+      params: { alert: properties.id, zoom: 'true' }
+    });
+  };
 
   // Select the appropriate icon based on event type
   const eventIcon = useMemo(() => {
-    const iconColor = alertData.eventColor;
+    const iconColor = "#ffffff"; // White icon for better contrast on colored background
     const size = 26; // Bigger icon
     const strokeWidth = 2;
 
@@ -103,7 +114,7 @@ export const AlertItem: React.FC<Props> = ({ alert, onPress }) => {
     return (
       <AlertTriangle size={size} color={iconColor} strokeWidth={strokeWidth} />
     );
-  }, [properties.event, alertData.eventColor]);
+  }, [properties.event]);
 
   return (
     <TouchableOpacity
@@ -111,20 +122,20 @@ export const AlertItem: React.FC<Props> = ({ alert, onPress }) => {
       onPress={() => onPress(alert)}
       activeOpacity={0.7}
     >
-      <View style={styles.content}>
-        {/* Event type header with icon */}
-        <View style={styles.headerRow}>
-          <View style={styles.eventInfo}>
-            {eventIcon}
-            <Text
-              style={[styles.eventType, { color: alertData.eventColor }]}
-              numberOfLines={1}
-            >
-              {properties.event}
-            </Text>
-          </View>
-        </View>
+      {/* Colored header with white text */}
+      <View 
+        style={[
+          styles.headerRow, 
+          { backgroundColor: alertData.eventColor }
+        ]}
+      >
+        {eventIcon}
+        <Text style={styles.eventType} numberOfLines={1}>
+          {properties.event}
+        </Text>
+      </View>
 
+      <View style={styles.content}>
         <View style={styles.bodyContent}>
           {/* Main alert content */}
           <Text
@@ -164,18 +175,35 @@ export const AlertItem: React.FC<Props> = ({ alert, onPress }) => {
             )}
           </View>
 
-          <TouchableOpacity
-            style={[
-              styles.detailButton,
-              { backgroundColor: colors.primary + '15' },
-            ]}
-            onPress={() => onPress(alert)}
-          >
-            <Text style={[styles.detailButtonText, { color: colors.primary }]}>
-              Details
-            </Text>
-            <ChevronRight size={16} color={colors.primary} />
-          </TouchableOpacity>
+          <View style={styles.buttonContainer}>
+            {/* Map View button */}
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                { backgroundColor: alertData.eventColor }
+              ]}
+              onPress={handleMapView}
+            >
+              <MapPin size={14} color="#FFFFFF" />
+              <Text style={styles.actionButtonText}>
+                Map
+              </Text>
+            </TouchableOpacity>
+            
+            {/* Details button */}
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                { backgroundColor: colors.primary + '15', marginLeft: 8 }
+              ]}
+              onPress={() => onPress(alert)}
+            >
+              <Text style={[styles.detailButtonText, { color: colors.primary }]}>
+                Details
+              </Text>
+              <ChevronRight size={14} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -213,16 +241,16 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  eventInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
   },
   eventType: {
     fontSize: 18,
     fontFamily: FONTS.bold,
+    color: '#FFFFFF', // White text for contrast
+    marginLeft: 10,
   },
   bodyContent: {
     flex: 1, // This will make the body content expand to fill available space
@@ -263,8 +291,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: FONTS.medium,
   },
-  detailButton: {
-    paddingHorizontal: 16,
+  buttonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionButton: {
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     flexDirection: 'row',
@@ -274,5 +306,10 @@ const styles = StyleSheet.create({
   detailButtonText: {
     fontSize: 14,
     fontFamily: FONTS.medium,
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontFamily: FONTS.medium,
+    color: '#FFFFFF', // White text for better contrast
   },
 });

@@ -1,6 +1,12 @@
-<img src="https://img.shields.io/badge/version-1.4.0a-blue" alt="Version 1.4.0a"/>
+<img src="https://img.shields.io/badge/version-1.5.0b-blue" alt="Version 1.5.0b"/>
 
 > Tornado in the US? Beep beep!
+
+## Android Closed Testing Available!
+
+We're currently running a closed test for our Android app. If you'd like to gain early access, please reach out to me on [Twitter](https://twitter.com/RubyNouille) for an invitation to the testing program.
+
+**You can find the app online on [nadobeep.app](https://nadobeep.app) or soon in the Android Play Store (but please come join the test program, it's more open than you'd think).**
 
 ## What is this?
 
@@ -14,7 +20,7 @@ I originally built this app for personal use, but I decided to share it with the
 - 🔄 **Real-time Monitoring**: Checks NWS API every 30 seconds
 - 🔔 **Notifications**: Alerts you when there severe weather events
 - 🔊 **Tornado Alarm**: Distinctive sound when tornados are detected
-- 🗺️ **Visual Tracking**: Map view of alert areas
+- 🗺️ **Visual Tracking**: Map view of alert areas + radar
 
 ## Development
 
@@ -47,13 +53,10 @@ I don't have any Apple devices, so I can't test iOS builds. If you can help with
 
 ## Roadmap
 
-- [X] Add map view
-- [X] Add settings page
-- [X] Dark mode
 - [X] Ability to toggle individual weather event notifications
 - [X] Ability to toggle individual alarms
-- [X] New UI for alerts
 - [X] New logo
+- [X] Radar map (reflectivity)
 - [ ] Better handling of previous alerts on web
 - [ ] Better sound handling on web
 - [ ] iOS support
@@ -61,7 +64,7 @@ I don't have any Apple devices, so I can't test iOS builds. If you can help with
 
 ## Platform Support
 
-- 📱 iOS/Android via Expo
+- 📱 Android via Expo
 - 🌐 Web browsers
 
 ## License
