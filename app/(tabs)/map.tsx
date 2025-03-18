@@ -348,22 +348,32 @@ export default function MapScreen() {
         <View style={mapStyles.alertPopupContainer} pointerEvents="box-none">
           <View style={mapStyles.alertPopup}>
             <View style={[
-              mapStyles.popupHeader, 
+              mapStyles.colorAccent, 
               {backgroundColor: getEventColor(selectedAlert.properties.event)}
-            ]}>
-              <Text style={mapStyles.popupEventType}>
-                {selectedAlert.properties.event}
-              </Text>
-              <TouchableOpacity 
-                style={mapStyles.closeButton} 
-                onPress={handleClosePopup}
-                hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }} // Increase touch area
-              >
-                <X size={16} color="#fff" />
-              </TouchableOpacity>
-            </View>
-            
+            ]} />
             <View style={mapStyles.popupContent}>
+              <View style={mapStyles.popupTopRow}>
+                <View style={mapStyles.eventInfoContainer}>
+                  <View style={[
+                    mapStyles.colorDot, 
+                    {backgroundColor: getEventColor(selectedAlert.properties.event)}
+                  ]} />
+                  <Text style={[
+                    mapStyles.popupEventType, 
+                    {color: '#444'}
+                  ]}>
+                    {selectedAlert.properties.event}
+                  </Text>
+                </View>
+                <TouchableOpacity 
+                  style={mapStyles.closeButton} 
+                  onPress={handleClosePopup}
+                  hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                >
+                  <X size={16} color="#888" />
+                </TouchableOpacity>
+              </View>
+              
               <Text style={mapStyles.popupHeadline} numberOfLines={2}>
                 {selectedAlert.properties.headline}
               </Text>
@@ -375,7 +385,6 @@ export default function MapScreen() {
                 </Text>
               </View>
               
-              
               <View style={mapStyles.timeRow}>
                 <Text style={mapStyles.timeLabel}>Issued:</Text>
                 <Text style={mapStyles.timeValue}>
@@ -386,12 +395,25 @@ export default function MapScreen() {
               <TouchableOpacity 
                 style={[
                   mapStyles.detailsButton, 
-                  {backgroundColor: getEventColor(selectedAlert.properties.event)}
+                  {
+                    backgroundColor: '#f8f8f8',
+                    borderWidth: 1,
+                    borderColor: '#ddd'
+                  }
                 ]}
                 onPress={handleViewDetails}
               >
-                <Text style={mapStyles.detailsButtonText}>View Details</Text>
-                <ExternalLink size={14} color="#fff" style={mapStyles.detailsIcon} />
+                <Text style={[
+                  mapStyles.detailsButtonText, 
+                  {color: '#555'}
+                ]}>
+                  View Details
+                </Text>
+                <ExternalLink 
+                  size={14} 
+                  color="#555" 
+                  style={mapStyles.detailsIcon} 
+                />
               </TouchableOpacity>
             </View>
           </View>
@@ -415,7 +437,7 @@ const mapStyles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 50 : Platform.OS === 'android' ? 50 : 20,
     paddingHorizontal: 16,
     paddingBottom: 10,
-    backgroundColor: '#2980b9', 
+    backgroundColor: '#34495e',
     height: Platform.OS === 'ios' ? 100 : Platform.OS === 'android' ? 100 : 70,
   },
   // Map container positioned below header, not overlapped
@@ -448,7 +470,7 @@ const mapStyles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? undefined : 'Inter-Bold',
   },
   iconButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 20,
     width: 36,
     height: 36,
@@ -574,31 +596,44 @@ const mapStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+    flexDirection: 'row',
   },
-  popupHeader: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+  colorAccent: {
+    width: 4,
+  },
+  popupContent: {
+    padding: 16,
+    flex: 1,
+  },
+  popupTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 12,
+  },
+  eventInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  colorDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 8,
   },
   popupEventType: {
-    color: '#fff',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
     fontFamily: Platform.OS === 'ios' ? undefined : 'Inter-Bold',
   },
   closeButton: {
     padding: 4,
   },
-  popupContent: {
-    padding: 12,
-  },
   popupHeadline: {
     fontSize: 16,
     fontWeight: '600',
     color: '#2c3e50',
-    marginBottom: 8,
+    marginBottom: 12,
     fontFamily: Platform.OS === 'ios' ? undefined : 'Inter-SemiBold',
   },
   locationRow: {

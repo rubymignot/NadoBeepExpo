@@ -122,20 +122,25 @@ export const AlertItem: React.FC<Props> = ({ alert, onPress }) => {
       onPress={() => onPress(alert)}
       activeOpacity={0.7}
     >
-      {/* Colored header with white text */}
-      <View 
-        style={[
-          styles.headerRow, 
-          { backgroundColor: alertData.eventColor }
-        ]}
-      >
-        {eventIcon}
-        <Text style={styles.eventType} numberOfLines={1}>
-          {properties.event}
-        </Text>
-      </View>
-
+      <View style={[styles.colorAccent, { backgroundColor: alertData.eventColor }]} />
       <View style={styles.content}>
+        <View style={styles.topRow}>
+          <View style={styles.eventTitleContainer}>
+            <View style={[styles.colorDot, { backgroundColor: alertData.eventColor }]} />
+            <Text style={[styles.eventType, { color: colors.text.primary }]}>
+              {properties.event}
+            </Text>
+          </View>
+          
+          {alertData.timeLeft && (
+            <Text
+              style={[styles.timeLeftText, { color: alertData.eventColor }]}
+            >
+              {alertData.timeLeft}
+            </Text>
+          )}
+        </View>
+
         <View style={styles.bodyContent}>
           {/* Main alert content */}
           <Text
@@ -165,14 +170,6 @@ export const AlertItem: React.FC<Props> = ({ alert, onPress }) => {
                 {alertData.timeAgo}
               </Text>
             </View>
-
-            {alertData.timeLeft && (
-              <Text
-                style={[styles.timeLeftText, { color: alertData.eventColor }]}
-              >
-                {alertData.timeLeft}
-              </Text>
-            )}
           </View>
 
           <View style={styles.buttonContainer}>
@@ -180,12 +177,12 @@ export const AlertItem: React.FC<Props> = ({ alert, onPress }) => {
             <TouchableOpacity
               style={[
                 styles.actionButton,
-                { backgroundColor: alertData.eventColor }
+                { backgroundColor: colors.surface, borderWidth: 1, borderColor: alertData.eventColor }
               ]}
               onPress={handleMapView}
             >
-              <MapPin size={14} color="#FFFFFF" />
-              <Text style={styles.actionButtonText}>
+              <MapPin size={14} color={alertData.eventColor} />
+              <Text style={[styles.actionButtonText, { color: alertData.eventColor }]}>
                 Map
               </Text>
             </TouchableOpacity>
@@ -194,7 +191,7 @@ export const AlertItem: React.FC<Props> = ({ alert, onPress }) => {
             <TouchableOpacity
               style={[
                 styles.actionButton,
-                { backgroundColor: colors.primary + '15', marginLeft: 8 }
+                { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary, marginLeft: 8 }
               ]}
               onPress={() => onPress(alert)}
             >
@@ -215,6 +212,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     flex: 1, // Make the container fill the available space
+    flexDirection: 'row',
     ...Platform.select({
       web: {
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
@@ -232,25 +230,34 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  colorAccent: {
+    width: 6,
+  },
   content: {
     padding: 20,
     flex: 1, // Fill the container
     display: 'flex', // Ensure flex display works on web
     flexDirection: 'column', // Stack children vertically
   },
-  headerRow: {
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  eventTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+  },
+  colorDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 8,
   },
   eventType: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: FONTS.bold,
-    color: '#FFFFFF', // White text for contrast
-    marginLeft: 10,
   },
   bodyContent: {
     flex: 1, // This will make the body content expand to fill available space
@@ -310,6 +317,5 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: 14,
     fontFamily: FONTS.medium,
-    color: '#FFFFFF', // White text for better contrast
   },
 });

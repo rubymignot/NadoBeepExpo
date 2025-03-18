@@ -283,38 +283,47 @@ export default function AlertDetailsScreen() {
           />
         }
       >
-        {/* Hero Header with Pattern Background */}
-        <ImageBackground 
-          source={DEFAULT_PATTERN}
-          style={[styles.heroHeader, { backgroundColor: eventColor }]}
-          imageStyle={{ opacity: 0.1 }}
-        >
+        {/* Header with subtle design */}
+        <View style={[styles.headerContainer, { backgroundColor: bgColor }]}>
           <TouchableOpacity
             style={styles.backButtonContainer}
             onPress={() => router.back()}
             hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
           >
-            <ArrowLeft size={24} color="#FFFFFF" />
+            <ArrowLeft size={24} color={colors.text.primary} />
           </TouchableOpacity>
 
-          <View style={styles.heroContent}>
-            {eventIcon}
-            <Text style={styles.eventType}>{alert.properties.event}</Text>
-            <View style={[styles.severityBadge, { backgroundColor: severityColor }]}>
-              <Text style={styles.severityText}>{alert.properties.severity}</Text>
+          <View style={styles.headerContent}>
+            <View style={[styles.eventIconContainer, { borderColor: eventColor, borderWidth: 2 }]}>
+              {eventIcon}
+            </View>
+            <Text style={[styles.eventType, { color: colors.text.primary }]}>
+              {alert.properties.event}
+            </Text>
+            <View style={[styles.severityBadge, { 
+              backgroundColor: 'transparent',
+              borderColor: severityColor,
+              borderWidth: 1
+            }]}>
+              <Text style={[styles.severityText, { color: severityColor }]}>
+                {alert.properties.severity}
+              </Text>
             </View>
           </View>
-        </ImageBackground>
+        </View>
 
         <View style={styles.contentContainer}>
           {/* Main Content Area */}
           <View style={[styles.contentCard, { backgroundColor: cardBgColor }]}>
-            <Text style={[styles.headline, { color: textColor }]}>
-              {alert.properties.headline}
-            </Text>
+            <View style={styles.titleSection}>
+              <View style={[styles.colorAccent, { backgroundColor: eventColor }]} />
+              <Text style={[styles.headline, { color: textColor }]}>
+                {alert.properties.headline}
+              </Text>
+            </View>
 
             <View style={styles.locationContainer}>
-              <MapPin size={20} color={eventColor} style={styles.locationIcon} />
+              <MapPin size={20} color={colors.text.secondary} style={styles.locationIcon} />
               <Text style={[styles.locationText, { color: textColor }]}>
                 {alert.properties.areaDesc}
               </Text>
@@ -324,7 +333,7 @@ export default function AlertDetailsScreen() {
             <View style={styles.timeSection}>
               <View style={styles.timeRow}>
                 <View style={styles.timeIconContainer}>
-                  <Calendar size={20} color={eventColor} />
+                  <Calendar size={20} color={colors.text.secondary} />
                 </View>
                 <View style={styles.timeTextContainer}>
                   <Text style={[styles.timeLabel, { color: secondaryTextColor }]}>
@@ -341,7 +350,7 @@ export default function AlertDetailsScreen() {
 
               <View style={[styles.timeRow, styles.expireRow]}>
                 <View style={styles.timeIconContainer}>
-                  <Clock size={20} color={eventColor} />
+                  <Clock size={20} color={colors.text.secondary} />
                 </View>
                 <View style={styles.timeTextContainer}>
                   <Text style={[styles.timeLabel, { color: secondaryTextColor }]}>
@@ -360,19 +369,23 @@ export default function AlertDetailsScreen() {
             {/* Buttons for Map and Source */}
             <View style={styles.actionButtonsContainer}>
               <TouchableOpacity 
-                style={[styles.mapButton, { backgroundColor: eventColor }]} 
+                style={[styles.mapButton, { 
+                  backgroundColor: '#f5f5f5', 
+                  borderColor: eventColor,
+                  borderWidth: 1
+                }]} 
                 onPress={handleViewMap}
               >
-                <MapIcon size={20} color="#FFFFFF" />
-                <Text style={styles.mapButtonText}>View on Map</Text>
+                <MapIcon size={20} color={eventColor} />
+                <Text style={[styles.mapButtonText, { color: eventColor }]}>View on Map</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
-                style={[styles.sourceButton, { borderColor: eventColor }]} 
+                style={[styles.sourceButton, { borderColor: '#ddd' }]} 
                 onPress={() => Linking.openURL(`https://api.weather.gov/alerts/${alertId}`)}
               >
-                <ExternalLink size={20} color={eventColor} />
-                <Text style={[styles.sourceButtonText, { color: eventColor }]}>NWS Source</Text>
+                <ExternalLink size={20} color={colors.text.secondary} />
+                <Text style={[styles.sourceButtonText, { color: colors.text.secondary }]}>NWS Source</Text>
               </TouchableOpacity>
             </View>
 
@@ -380,34 +393,38 @@ export default function AlertDetailsScreen() {
             {alert.properties.instruction && (
               <View style={styles.instructionSection}>
                 <View style={styles.sectionHeader}>
-                  <ShieldAlert size={20} color={eventColor} />
+                  <ShieldAlert size={20} color={colors.text.secondary} />
                   <Text style={[styles.sectionTitle, { color: textColor }]}>
                     Instructions
                   </Text>
                 </View>
-                <Text style={[styles.instructionText, { color: textColor }]}>
-                  {alert.properties.instruction}
-                </Text>
+                <View style={[styles.contentBox, { borderLeftColor: eventColor }]}>
+                  <Text style={[styles.instructionText, { color: textColor }]}>
+                    {alert.properties.instruction}
+                  </Text>
+                </View>
               </View>
             )}
 
             {/* Alert Description */}
             <View style={styles.descriptionSection}>
               <View style={styles.sectionHeader}>
-                <Info size={20} color={eventColor} />
+                <Info size={20} color={colors.text.secondary} />
                 <Text style={[styles.sectionTitle, { color: textColor }]}>
                   Description
                 </Text>
               </View>
-              <Text style={[styles.descriptionText, { color: textColor }]}>
-                {alert.properties.description}
-              </Text>
+              <View style={[styles.contentBox, { borderLeftColor: eventColor }]}>
+                <Text style={[styles.descriptionText, { color: textColor }]}>
+                  {alert.properties.description}
+                </Text>
+              </View>
             </View>
 
             {/* Additional Details */}
             <View style={styles.detailsSection}>
               <View style={styles.sectionHeader}>
-                <HelpCircle size={20} color={eventColor} />
+                <HelpCircle size={20} color={colors.text.secondary} />
                 <Text style={[styles.sectionTitle, { color: textColor }]}>
                   Additional Details
                 </Text>
@@ -524,12 +541,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: FONTS.medium,
   },
-  heroHeader: {
+  // New header styles to replace hero header
+  headerContainer: {
     width: '100%',
     paddingTop: Platform.OS === 'ios' ? 20 : Platform.OS === 'android' ? 40 : 0,
-    paddingBottom: 40,
+    paddingBottom: 24,
     paddingHorizontal: 20,
     position: 'relative',
+  },
+  headerContent: {
+    alignItems: 'center',
+    paddingTop: 60,
   },
   backButtonContainer: {
     position: 'absolute',
@@ -539,19 +561,22 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  heroContent: {
+  eventIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 60,
+    backgroundColor: 'transparent',
+    marginBottom: 16,
   },
   eventType: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginTop: 16,
+    marginTop: 8,
     textAlign: 'center',
     fontFamily: FONTS.bold,
   },
@@ -562,14 +587,12 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   severityText: {
-    color: 'white',
     fontWeight: 'bold',
     fontSize: 14,
     fontFamily: FONTS.bold,
   },
   contentContainer: {
     padding: 16,
-    marginTop: -30,
     maxWidth: 1200,
     marginHorizontal: 'auto',
   },
@@ -582,12 +605,21 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  titleSection: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  colorAccent: {
+    width: 4,
+    marginRight: 12,
+    borderRadius: 4,
+  },
   headline: {
     fontSize: 20,
     fontWeight: '600',
-    marginBottom: 16,
     lineHeight: 28,
     fontFamily: FONTS.semiBold,
+    flex: 1,
   },
   locationContainer: {
     flexDirection: 'row',
@@ -651,7 +683,6 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   mapButtonText: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
@@ -664,7 +695,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 12,
-    borderWidth: 1.5,
+    borderWidth: 1,
     marginLeft: 8,
     backgroundColor: 'transparent',
   },
@@ -687,6 +718,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 10,
     fontFamily: FONTS.semiBold,
+  },
+  contentBox: {
+    borderLeftWidth: 2,
+    paddingLeft: 14,
   },
   instructionText: {
     fontSize: 16,

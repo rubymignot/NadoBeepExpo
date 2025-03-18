@@ -25,21 +25,21 @@ export const SEVERITY_COLORS = {
   unknown: '#7f8c8d', // Gray
 };
 
-// Update alert event types with more distinct colors
+// Update alert event types with colors from weather.gov
 export const EVENT_COLORS = {
-  'Tornado Warning': '#d63031',        // Deep red
-  'Flash Flood Warning': '#3498db',    // Blue
-  'Flash Flood Statement': '#2980b9',  // Darker blue
-  'Severe Thunderstorm Warning': '#9b59b6', // Purple
-  'Flood Warning': '#3498db',          // Blue
-  'Flood Statement': '#2980b9',        // Darker blue
-  'Special Marine Warning': '#2c3e50', // Navy blue
-  'Severe Weather Statement': '#7f8c8d', // Gray
-  'Snow Squall Warning': '#34495e',    // Dark gray-blue
-  'Dust Storm Warning': '#e67e22',     // Orange
-  'Extreme Wind Warning': '#e74c3c',   // Red
-  'Test Tornado Warning': '#f1c40f',   // Yellow
-  'Dust Storm Advisory': '#d35400',    // Dark orange
+  'Tornado Warning': '#FF0000',        // Red (priority 2)
+  'Flash Flood Warning': '#8B0000',    // Darkred (priority 5)
+  'Flash Flood Statement': '#8B0000',  // Darkred (priority 6)
+  'Severe Thunderstorm Warning': '#FFA500', // Orange (priority 4)
+  'Flood Warning': '#00FF00',          // Green (priority 43)
+  'Flood Statement': '#00FF00',        // Green (priority 44)
+  'Special Marine Warning': '#FFA500', // Orange (priority 21)
+  'Severe Weather Statement': '#00FFFF', // Aqua (priority 7)
+  'Snow Squall Warning': '#C71585',    // Mediumvioletred (priority 23)
+  'Dust Storm Warning': '#FFE4C4',     // Bisque (priority 28)
+  'Extreme Wind Warning': '#FF8C00',   // Darkorange (priority 3)
+  'Test Tornado Warning': '#F0FFFF',   // Azure (using Test color, priority 109)
+  'Dust Storm Advisory': '#BDB76B',    // Darkkhaki (priority 73)
   default: '#95a5a6',                  // Default gray
 };
 
