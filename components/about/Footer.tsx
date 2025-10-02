@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Linking } from 'react-native';
-import { Github, Twitter } from 'lucide-react-native';
+import { Github, Facebook, Linkedin } from 'lucide-react-native';
 import { createThemedStyles } from '@/styles/about.styles';
 import { LIGHT_COLORS, DARK_COLORS } from '@/constants/theme';
 
@@ -25,15 +25,21 @@ const Footer = ({ isDarkMode }: FooterProps) => {
       <View style={styles.socialLinks}>
         <TouchableOpacity
           style={styles.socialButton}
-          onPress={() => openLink('https://github.com/rubynouille/NadoBeepExpo')}
+          onPress={() => openLink('https://github.com/rubymignot')}
         >
           <Github size={20} color={colors.text.secondary} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.socialButton}
-          onPress={() => openLink('https://x.com/RubyNouille')}
+          onPress={() => openLink('https://www.linkedin.com/in/rubymignot')}
         >
-          <Twitter size={20} color={colors.text.secondary} />
+          <Linkedin size={20} color={colors.text.secondary} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.socialButton}
+          onPress={() => openLink('https://www.facebook.com/rubymignotweb')}
+        >
+          <Facebook size={20} color={colors.text.secondary} />
         </TouchableOpacity>
       </View>
     </View>
