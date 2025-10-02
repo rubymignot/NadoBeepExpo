@@ -18,7 +18,10 @@ const Footer = ({ isDarkMode }: FooterProps) => {
   
   return (
     <View style={styles.footer}>
-      <Text style={styles.footerText}>Made with ♥ by some weather nerd</Text>
+      <Text style={styles.footerText}>Made in France 🇫🇷 by </Text>
+      <TouchableOpacity onPress={() => openLink('https://rubymignot.com')}>
+        <Text style={[styles.footerText, { color: colors.primary }]}>Ruby Mignot - rubymignot.com</Text>
+      </TouchableOpacity>
       <View style={styles.socialLinks}>
         <TouchableOpacity
           style={styles.socialButton}
